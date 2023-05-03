@@ -48,7 +48,7 @@ sub update {
 
     my $body     = $c->validation->param('body');
     for my $comment ( @{ $body->{comments} } ) {
-        push @{$lines}, Config::Ctrontab::Comment->new( -data => "# $comment" );
+        push @{$lines}, Config::Crontab::Comment->new( -data => "# $comment" );
     }
     ## TODO: Add Event and Environment handling as needed?
 

@@ -4,6 +4,20 @@
 [% INCLUDE 'doc-head-close.inc' %]
 </head>
 
+[% BLOCK comments %]
+<pre id="comment-[% block.id %]">
+[%- FOR comment IN block.comments -%]
+[%- comment.dump %]
+[% END -%]
+</pre>
+[%- END %]
+
+[%- BLOCK environments -%]
+[%- FOR env IN environment -%]
+[%- env.data %]
+[% END -%]
+[%- END -%]
+
 <body>
     [% WRAPPER 'header.inc' %]
         [% INCLUDE 'prefs-admin-search.inc' %]
@@ -17,7 +31,7 @@
 
     <div class="main container-fluid">
         <div class="row">
-            <div class="col-sm-10 col-sm-push-2">
+            <div class="col-sm-12">
                 <main>
                     [% IF error %]
                       There was an error: [% error | html %]
@@ -26,14 +40,12 @@
                     <div class="form-group">
                         <label for="env_vars">Environment Variables:</label>
                         <textarea class="form-control" rows="3" id="env_vars" placeholder="# Please set PATH, MAILTO, HOME... here">
-                        [%- FOR env IN environment -%]
-                        [%- env.data %]
-                        [% END -%]
+                        [%- PROCESS environments environment -%]
                         </textarea>
                     </div>
 
                     <div id="toolbar" class="btn-toolbar">
-                        <a class="btn btn-primary" id="newcity" href="/cgi-bin/koha/admin/cities.pl?op=add_form"><i class="fa fa-plus"></i> New </a>
+                        <button type="button" data-toggle="modal" data-target="#jobModal" class="btn btn-primary" id="newjob"><i class="fa fa-plus"></i> New </button>
                         <a class="btn btn-default"><i class="fa fa-save"></i> Backup</a>
                         <a class="btn btn-default"><i class="fa fa-open"></i> Get from crontab</a>
                         <a class="btn btn-default"><i class="fa fa-save"></i> Save to crontab</a>
@@ -58,23 +70,19 @@
                                         [% block.id | html %]
                                     </td>
                                     <td>
-                                        <ul>
-                                        [% FOR comment IN block.comments %]
-                                            <li>[% comment.dump %]</li>
-                                        [% END %]
-                                        </ul>                                       
-                                    <td>
-                                        [% block.events.0.datetime | html %]
+                                        [% PROCESS comments block %]
+                                    <td id="schedule-[% block.id %]">
+                                        [%- block.events.0.datetime | html -%]
                                     </td>
-                                    <td>
-                                        [% block.events.0.command | html %]
+                                    <td id="command-[% block.id %]">
+                                        [%- block.events.0.command | html -%]
                                     </td>
                                     <td></td>
                                     <td>
                                         <a class="btn btn-danger" data-toggle="tooltip" data-placement="left" title="stderr" href="<%= JSON.parse(routes).logger + '?id=' + crontab._id %>" target="_blank"><i class="fa fa-list-alt" aria-hidden="true"></i></a>
                                         <a class="btn btn-primary" data-toggle="tooltip" data-placement="left" title="stdout" href="<%= JSON.parse(routes).stdout + '?id=' + crontab._id %>" target="_blank"><i class="fa fa-list-alt" aria-hidden="true"></i></a>
                                         <a class="btn btn-default"><i class="fa fa-play" aria-hidden="true"></i> Run now</a>
-                                        <a class="btn btn-primary"><i class="fa fa-edit" aria-hidden="true"></i> Edit</a>
+                                        <button type="button" data-toggle="modal" data-target="#jobModal" data-block="[% block.id | html %]" class="btn btn-primary" id="editjob"><i class="fa fa-edit"></i> Edit</button>
                                         [% IF block.events.0.active %]
                                         <a class="btn btn-default"><i class="fa fa-stop" aria-hidden="true"></i> Disable</a>
                                         [% ELSE %]
@@ -89,18 +97,72 @@
                     </div>
                 </main>
             </div>
-    
-            <div class="col-sm-2 col-sm-pull-10">
-                <aside>
-                    <img src="[% PLUGIN_PATH %]/logo.png" style="width: 90%" />
-                </aside>
-            </div>
         </div>
+    </div>
+
+    <!-- Add/Edit Job Modal -->
+    <div class="modal fade" id="jobModal" tabindex="-1" role="dialog" aria-labelledby="job-modal-label">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="closebtn" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title" id="job-modal-label"></h4>
+          </div>
+          <div class="modal-body">
+    
+              <div class="form-group">
+                <label for="job-comment">Comment</label>
+                <textarea class="form-control" id="job-comment"></textarea>
+
+                <label for="job-schedule">Schedule</label>
+                <input type="text" class="form-control" id="job-schedule"></input>
+   
+                <label for="job-command">Command</label>
+                <input type="text" class="form-control" id="job-command"></input>
+              </div>
+
+              <div class="form-group">
+                <h2>Output</h2>
+                <label for="job-output">Standard out</label>
+                <label for="job-errors">Standard error</label>                
+              </div>
+              
+          </div>
+          <div class="modal-footer">
+            <input type="hidden" name="block_id" id="block_id">
+            <button class="btn btn-default deny cancel" href="#" data-dismiss="modal" aria-hidden="true"><i class="fa fa-times"></i> Cancel</button>
+            <button id="job-modal-btn-submit" type="button" class="btn btn-primary">Save</button>
+          </div>
+        </div>
+      </div>
     </div>
 
 [% MACRO jsinclude BLOCK %]
     [% INCLUDE 'datatables.inc' %]
     <script>
+        $(document).ready(function() {
+            $("#jobModal").on("shown.bs.modal", function(e){
+                let button = $(e.relatedTarget);
+
+                // Get block id if this is an edit
+                let block_id = button.data('block');
+                if (block_id) {
+                    $('#job-modal-label').html('Edit job');
+                    $('#block_id').val(block_id);
+                } else {
+                    $('#job-modal-label').html('New job');
+                    $('#block_id').val('');
+                }
+
+                let comment = $("#comment-"+block_id).text();
+                $('#job-comment').val(comment);
+                let command = $('#command-'+block_id).text();
+                $('#job-command').val(command);
+                let schedule = $('#schedule-'+block_id).text();
+                $('#job-schedule').val(schedule);
+                
+            });
+        });
     </script>
 [% END %]
 
