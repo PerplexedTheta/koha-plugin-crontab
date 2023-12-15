@@ -2,7 +2,7 @@
 "/blocks":
   post:
     x-mojo-to: Com::PTFSEurope::Crontab::Controller#add
-    operationId: addBlock
+    operationId: addCronBlock
     tags:
       - cronjobs
     summary: Add cron block
@@ -32,7 +32,7 @@
 "/blocks/{block_id}":
   put:
     x-mojo-to: Com::PTFSEurope::Crontab::Controller#update
-    operationId: UpdateBlock
+    operationId: updateCronBlock
     tags:
       - cronjobs
     parameters:
@@ -60,10 +60,9 @@
 "/backups":
   post:
     x-mojo-to: Com::PTFSEurope::Crontab::Controller#backup
-    operationId: BackupCrontab
+    operationId: backupCrontab
     tags:
       - cronjobs
-    parameters: []
     produces:
       - application/json
     responses:
