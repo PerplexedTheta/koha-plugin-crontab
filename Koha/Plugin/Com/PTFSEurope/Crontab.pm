@@ -62,8 +62,13 @@ sub tool {
         my @events   = $block->select( -type => 'event' );
 
         # Get block id
-        my $id;
         my $id_line = shift @comments;
+
+        # Skip first block (plugin header)
+        next if ($id_line->data =~ 'Koha Crontab manager');
+
+        # Set block id
+        my $id;
         if ( $id_line->data =~ /# BLOCKID: (\d+)/ ) {
             $id = $1;
         } else {
@@ -71,10 +76,6 @@ sub tool {
             $self->output_html( $template->output() );
             return;
         }
-
-        # Skip first block (plugin header)
-        next if ($id == 0);
-        # The above block comes out of order.. we get the comment prior to the block identifier
 
         # Global environment block
         unless (@events) {
@@ -128,7 +129,7 @@ sub install() {
     $ct->write("$filename");
 
     # Read existing crontab, update it to identify blocks
-    # so we can manage that we can recognise for management
+    # we can manage
     # BLOCKID:
     my $block_id = 1;
     for my $block ( $ct->blocks ) {
@@ -156,7 +157,6 @@ sub install() {
 "# This crontab file is managed by the Koha Crontab manager plugin"
         )
     );
-    $block->last( Config::Crontab::Comment->new( -data => "# BLOCKID: 0" ) );
     $ct->first($block);
 
     # Add a hash so we can tell if the managed content has
