@@ -5,6 +5,7 @@ package Koha::Plugin::Com::PTFSEurope::Crontab;
 use Modern::Perl;
 use base qw(Koha::Plugins::Base);
 
+use POSIX qw(strftime);
 use Module::Metadata;
 use Config::Crontab;
 
@@ -73,6 +74,7 @@ sub tool {
 
         # Skip first block (plugin header)
         next if ($id == 0);
+        # The above block comes out of order.. we get the comment prior to the block identifier
 
         # Global environment block
         unless (@events) {
@@ -119,7 +121,11 @@ sub install() {
         return 0;
     };
 
-    # We should take a backup here before we do anything else
+    # Take a backup
+    my $path = $self->mbf_dir . '/backups/';
+    my $now_string = strftime "%F_%H-%M-%S", localtime;
+    my $filename = $path . 'install_' . $now_string;
+    $ct->write("$filename");
 
     # Read existing crontab, update it to identify blocks
     # so we can manage that we can recognise for management
