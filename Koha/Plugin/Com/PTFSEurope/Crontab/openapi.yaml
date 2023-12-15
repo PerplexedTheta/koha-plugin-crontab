@@ -2,14 +2,17 @@
 "/blocks":
   post:
     x-mojo-to: Com::PTFSEurope::Crontab::Controller#add
-    operationId: AddBlock
+    operationId: addBlock
     tags:
       - cronjobs
+    summary: Add cron block
     parameters:
       - name: body
         in: body
-        description: Cron block to add
+        description: A JSON object containing information about the new block
         required: true
+    consumes:
+      - application/json
     produces:
       - application/json
     responses:
