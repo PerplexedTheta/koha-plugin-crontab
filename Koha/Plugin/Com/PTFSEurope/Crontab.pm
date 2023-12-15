@@ -120,7 +120,8 @@ sub install() {
     my $ct = Config::Crontab->new();
     $ct->mode('block');
     $ct->read or do {
-        return 0;
+        warn "No crontab found";
+        return 1;
     };
 
     # Take a backup
