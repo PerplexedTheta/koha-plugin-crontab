@@ -11,6 +11,8 @@
         in: body
         description: A JSON object containing information about the new block
         required: true
+        schema:
+          type: object
     consumes:
       - application/json
     produces:
