@@ -33,6 +33,7 @@
         <div class="row">
             <div class="col-sm-12">
                 <main>
+                    <div id="message"></div>
                     [% IF error %]
                       There was an error: [% error | html %]
                     [% END %]
@@ -46,9 +47,9 @@
 
                     <div id="toolbar" class="btn-toolbar">
                         <button type="button" data-toggle="modal" data-target="#jobModal" class="btn btn-primary" id="newjob"><i class="fa fa-plus"></i> New </button>
-                        <a class="btn btn-default"><i class="fa fa-save"></i> Backup</a>
-                        <a class="btn btn-default"><i class="fa fa-open"></i> Get from crontab</a>
-                        <a class="btn btn-default"><i class="fa fa-save"></i> Save to crontab</a>
+                        <a class="btn btn-default" id="backup_now"><i class="fa fa-save"></i> Backup</a>
+                        <a class="btn btn-default" id="reload_now" href="/cgi-bin/koha/plugins/run.pl?class=Koha%3A%3APlugin%3A%3ACom%3A%3APTFSEurope%3A%3ACrontab&method=tool"><i class="fa fa-open"></i> Get from crontab</a>
+                        <a class="btn btn-default" id="save_now"><i class="fa fa-save"></i> Save to crontab</a>
                     </div>
 
                     <div class="page-section">
@@ -161,6 +162,21 @@
                 let schedule = $('#schedule-'+block_id).text();
                 $('#job-schedule').val(schedule);
                 
+            });
+
+            $("#backup_now").on('click', function(e){
+                let url = '/api/v1/contrib/crontab/backups';
+                let posting = $.post(
+                    url,
+                );
+    
+                posting.done(function(data) {
+                    $('#message').replaceWith('<div id="message" class="alert alert-success">Backup created: '+data.filename+'</div>');
+                });
+            
+                posting.fail(function(data) {
+                    $('#message').replaceWith('<div id="message" class="alert alert-danger">Backup failed</div>');
+                });
             });
         });
     </script>

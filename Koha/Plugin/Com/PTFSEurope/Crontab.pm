@@ -6,6 +6,7 @@ use Modern::Perl;
 use base qw(Koha::Plugins::Base);
 
 use POSIX qw(strftime);
+use Mojo::JSON qw(decode_json);
 use Module::Metadata;
 use Config::Crontab;
 
@@ -140,7 +141,7 @@ sub install() {
             )
           )
         {
-            return 0;    # Already installed
+            return 1;    # Already installed
         }
         $block->first(
             Config::Crontab::Comment->new(

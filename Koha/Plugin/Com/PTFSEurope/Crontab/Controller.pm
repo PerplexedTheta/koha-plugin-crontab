@@ -3,8 +3,11 @@ use utf8;
 package Koha::Plugin::Com::PTFSEurope::Crontab::Controller;
 
 use Modern::Perl;
+use Koha::Plugin::Com::PTFSEurope::Crontab;
+
 use Mojo::Base 'Mojolicious::Controller';
 
+use POSIX qw(strftime);
 use Config::Crontab;
 
 =head1 API
@@ -67,6 +70,38 @@ sub update {
     return $c->render(
         status  => 200,
         openapi => { success => Mojo::JSON->true }
+    );
+}
+
+sub backup {
+    my $c = shift->openapi->valid_input or return;
+
+    my $plugin =
+      Koha::Plugin::Com::PTFSEurope::Crontab->new;
+
+    my $ct = Config::Crontab->new();
+    $ct->mode('block');
+    $ct->read or do {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Could not read crontab file" }
+        );
+    };
+
+    # Take a backup
+    my $path = $plugin->mbf_dir . '/backups/';
+    my $now_string = strftime "%F_%H-%M-%S", localtime;
+    my $filename = $path . 'backup_' . $now_string;
+    $ct->write("$filename") or do {
+         return $c->render(
+            status  => 500,
+            openapi => { error => "Could not write to backup: " . $ct->error }
+        );
+    };
+
+    return $c->render(
+        status => 200,
+        openapi => { filename => "backup_" . $now_string }
     );
 }
 
