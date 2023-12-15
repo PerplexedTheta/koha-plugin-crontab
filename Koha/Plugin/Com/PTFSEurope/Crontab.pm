@@ -10,6 +10,8 @@ use Module::Metadata;
 use Config::Crontab;
 use YAML::XS;
 
+$YAML::XS::Boolean = "JSON::PP";
+
 #BEGIN {
 #    my $path = Module::Metadata->find_module_by_name(__PACKAGE__);
 #    $path =~ s!\.pm$!/lib!;
