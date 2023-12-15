@@ -4,15 +4,14 @@
     x-mojo-to: Com::PTFSEurope::Crontab::Controller#add
     operationId: AddBlock
     tags:
-    - cronjobs
+      - cronjobs
     parameters:
-    - name: body
-      in: body
-      description: Cron block to add
-      required: true
-      type: object
+      - name: body
+        in: body
+        description: Cron block to add
+        required: true
     produces:
-    - application/json
+      - application/json
     responses:
       '201':
         description: Block added
@@ -32,15 +31,15 @@
     x-mojo-to: Com::PTFSEurope::Crontab::Controller#update
     operationId: UpdateBlock
     tags:
-    - cronjobs
+      - cronjobs
     parameters:
-    - name: block_id
-      in: path
-      description: Internal cron block identifier
-      required: true
-      type: integer
+      - name: block_id
+        in: path
+        description: Internal cron block identifier
+        required: true
+        type: integer
     produces:
-    - application/json
+      - application/json
     responses:
       '200':
         description: A successful update
@@ -60,10 +59,10 @@
     x-mojo-to: Com::PTFSEurope::Crontab::Controller#backup
     operationId: BackupCrontab
     tags:
-    - cronjobs
+      - cronjobs
     parameters: []
     produces:
-    - application/json
+      - application/json
     responses:
       '200':
         description: A successful backup

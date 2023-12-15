@@ -59,7 +59,7 @@ sub add {
     ## TODO: Add Environment handling as needed?
 
     # Set block lines
-    $newblock->lines(\@lines);
+    $newblock->lines($lines);
 
     # Append block
     $ct->last( $newblock );
