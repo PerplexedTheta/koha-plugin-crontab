@@ -6,9 +6,9 @@ use Modern::Perl;
 use base qw(Koha::Plugins::Base);
 
 use POSIX qw(strftime);
-use Mojo::JSON qw(decode_json);
 use Module::Metadata;
 use Config::Crontab;
+use YAML::XS;
 
 #BEGIN {
 #    my $path = Module::Metadata->find_module_by_name(__PACKAGE__);
@@ -102,8 +102,8 @@ sub tool {
 sub api_routes {
     my ( $self, $args ) = @_;
 
-    my $spec_str = $self->mbf_read('openapi.json');
-    my $spec     = decode_json($spec_str);
+    my $spec_str = $self->mbf_read('openapi.yaml');
+    my $spec     = Load $spec_str;
 
     return $spec;
 }
