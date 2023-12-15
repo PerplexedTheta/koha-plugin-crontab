@@ -103,39 +103,41 @@
 
     <!-- Add/Edit Job Modal -->
     <div class="modal fade" id="jobModal" tabindex="-1" role="dialog" aria-labelledby="job-modal-label">
-      <div class="modal-dialog" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <button type="button" class="closebtn" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-            <h4 class="modal-title" id="job-modal-label"></h4>
-          </div>
-          <div class="modal-body">
-    
-              <div class="form-group">
-                <label for="job-comment">Comment</label>
-                <textarea class="form-control" id="job-comment"></textarea>
-
-                <label for="job-schedule">Schedule</label>
-                <input type="text" class="form-control" id="job-schedule"></input>
-   
-                <label for="job-command">Command</label>
-                <input type="text" class="form-control" id="job-command"></input>
-              </div>
-
-              <div class="form-group">
-                <h2>Output</h2>
-                <label for="job-output">Standard out</label>
-                <label for="job-errors">Standard error</label>                
-              </div>
-              
-          </div>
-          <div class="modal-footer">
-            <input type="hidden" name="block_id" id="block_id">
-            <button class="btn btn-default deny cancel" href="#" data-dismiss="modal" aria-hidden="true"><i class="fa fa-times"></i> Cancel</button>
-            <button id="job-modal-btn-submit" type="button" class="btn btn-primary">Save</button>
+      <form id="jobForm">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="closebtn" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+              <h4 class="modal-title" id="job-modal-label"></h4>
+            </div>
+            <div class="modal-body">
+      
+                <div class="form-group">
+                  <label for="job-comment">Comment</label>
+                  <textarea class="form-control" id="job-comment"></textarea>
+  
+                  <label for="job-schedule">Schedule</label>
+                  <input type="text" class="form-control" id="job-schedule"></input>
+     
+                  <label for="job-command">Command</label>
+                  <input type="text" class="form-control" id="job-command"></input>
+                </div>
+  
+                <div class="form-group">
+                  <h2>Output</h2>
+                  <label for="job-output">Standard out</label>
+                  <label for="job-errors">Standard error</label>                
+                </div>
+                
+            </div>
+            <div class="modal-footer">
+              <input type="hidden" name="block_id" id="block_id">
+              <button class="btn btn-default deny cancel" href="#" data-dismiss="modal" aria-hidden="true"><i class="fa fa-times"></i> Cancel</button>
+              <button id="job-modal-btn-submit" type="submit" class="btn btn-primary">Save</button>
+            </div>
           </div>
         </div>
-      </div>
+      </form>
     </div>
 
 [% MACRO jsinclude BLOCK %]
@@ -161,7 +163,57 @@
                 $('#job-command').val(command);
                 let schedule = $('#schedule-'+block_id).text();
                 $('#job-schedule').val(schedule);
+            });
+
+            $("#jobForm").on('submit', function(e) {
+                e.preventDefault();
                 
+                let url = '/api/v1/contrib/crontab/blocks';
+                let block_id = $('#block_id').val();
+
+                let comments = $('#job-comment').val().split('\n');
+                let schedule = $('#job-schedule').val();
+                let command  = $('#job-command').val();
+
+                let block = {
+                    'comments': comments,
+                    'events': [{
+                        'active': true,
+                        'schedule': schedule,
+                        'command': command
+                    }]
+                };
+
+                if ( !block_id ) {
+                    let posting = $.post(
+                        url,
+                        JSON.stringify(block)
+                    );
+
+                    posting.done(function(data) {
+                        $('#message').replaceWith('<div id="message" class="alert alert-success">Job added: '+data+'</div>');
+                    });
+
+                    posting.fail(function(data) {
+                        $('#message').replaceWith('<div id="message" class="alert alert-danger">Job creation failed</div>');
+                    });
+                } else {
+                    url += '/' + block_id;
+                    block.id = block_id;
+                    let putting = $.ajax({
+                        method: 'PUT',
+                        url: url,
+                        data: JSON.stringify(block)
+                    });
+
+                    putting.done(function(data) {
+                        $('#message').replaceWith('<div id="message" class="alert alert-success">Job updated: '+data+'</div>');
+                    });
+
+                    putting.fail(function(data) {
+                        $('#message').replaceWith('<div id="message" class="alert alert-danger">Job update failed</div>');
+                    });
+                }
             });
 
             $("#backup_now").on('click', function(e){

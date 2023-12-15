@@ -1,5 +1,44 @@
 {
-  "/block/{block_id}": {
+  "/blocks": {
+    "post": {
+      "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#add",
+      "operationId": "AddBlock",
+      "tags": ["cronjobs"],
+      "parameters": [{
+        "name": "body",
+        "in": "body",
+        "description": "Cron block to add",
+        "required": true,
+        "type": "object"
+      }],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "201": {
+          "description": "Block added"
+        },
+        "404": {
+          "description": "An error occured",
+          "schema": {
+              "type": "object",
+                "properties": {
+                  "error": {
+                    "description": "An explanation for the error",
+                    "type": "string"
+                  }
+                }
+          }
+        }
+      },
+      "x-koha-authorization": {
+        "permissions": {
+          "parameters": "1"
+        }
+      }
+    }
+  },
+  "/blocks/{block_id}": {
     "put": {
       "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#update",
       "operationId": "UpdateBlock",

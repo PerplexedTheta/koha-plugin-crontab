@@ -18,6 +18,67 @@ use Config::Crontab;
 
 =cut
 
+sub add {
+    my $c = shift->openapi->valid_input or return;
+
+    my $ct = Config::Crontab->new();
+    $ct->mode('block');
+    $ct->read or do {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Could not read crontab file" }
+        );
+    };
+
+    my @id_lines =
+      $ct->select( -type => 'comment', -data => "# BLOCKID: " );
+    $id_lines[-1]->data() =~ /.*(\d+)/;
+    my $final_id = $1;
+    my $next_id = $final_id + 1;
+
+    my $body     = $c->validation->param('body');
+
+    # Construct new block
+    my $lines;
+    my $newblock = Config::Crontab::Block->new();
+    push @{$lines},
+      Config::Crontab::Comment->new( -data => "# BLOCKID: $next_id" );
+
+
+    # Comments
+    for my $comment ( @{ $body->{comments} } ) {
+        push @{$lines}, Config::Crontab::Comment->new( -data => "# $comment" );
+    }
+
+    # Events
+    for my $event ( @{ $body->{events} } ) {
+        push @{$lines},
+          Config::Crontab::Event->new( -datetime => $event->schedule, -command => $event->command );
+    }
+
+    ## TODO: Add Environment handling as needed?
+
+    # Set block lines
+    $newblock->lines(\@lines);
+
+    # Append block
+    $ct->last( $newblock );
+
+    # Write to crontab
+    $ct->write
+      or do {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Could not write to crontab: " . $ct->error }
+        );
+      };
+
+    return $c->render(
+        status  => 200,
+        openapi => { success => Mojo::JSON->true }
+    );
+}
+
 sub update {
     my $c = shift->openapi->valid_input or return;
 
