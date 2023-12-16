@@ -130,8 +130,9 @@ sub install() {
         warn "No crontab found, installing default";
     };
 
-    # Take a backup
     if ($existing) {
+
+        # Take a backup
         my $path       = $self->mbf_dir . '/backups/';
         my $now_string = strftime "%F_%H-%M-%S", localtime;
         my $filename   = $path . 'install_' . $now_string;

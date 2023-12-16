@@ -26,24 +26,25 @@ sub add {
     $ct->read or do {
         return $c->render(
             status  => 500,
-            openapi => { error => "Could not read crontab file" }
+            openapi => { error => "Could not read crontab file: " . $ct->error }
         );
     };
 
-    my @id_lines =
-      $ct->select( -type => 'comment', -data => "# BLOCKID: " );
-    $id_lines[-1]->data() =~ /.*(\d+)/;
-    my $final_id = $1;
-    my $next_id = $final_id + 1;
+    my $last_block = 0;
+    my @id_lines = $ct->select( -type => 'comment', -data => "# BLOCKID: " );
+    if ( @id_lines ) {
+        $id_lines[-1]->data() =~ /.*(\d+)/;
+        $last_block = $1;
+    }
+    my $next_block  = $last_block + 1;
 
-    my $body     = $c->validation->param('body');
+    my $body = $c->validation->param('body');
 
     # Construct new block
     my $lines;
     my $newblock = Config::Crontab::Block->new();
     push @{$lines},
-      Config::Crontab::Comment->new( -data => "# BLOCKID: $next_id" );
-
+      Config::Crontab::Comment->new( -data => "# BLOCKID: $next_block" );
 
     # Comments
     for my $comment ( @{ $body->{comments} } ) {
@@ -53,7 +54,10 @@ sub add {
     # Events
     for my $event ( @{ $body->{events} } ) {
         push @{$lines},
-          Config::Crontab::Event->new( -datetime => $event->schedule, -command => $event->command );
+          Config::Crontab::Event->new(
+            -datetime => $event->{schedule},
+            -command  => $event->{command}
+          );
     }
 
     ## TODO: Add Environment handling as needed?
@@ -62,7 +66,7 @@ sub add {
     $newblock->lines($lines);
 
     # Append block
-    $ct->last( $newblock );
+    $ct->last($newblock);
 
     # Write to crontab
     $ct->write
@@ -74,7 +78,7 @@ sub add {
       };
 
     return $c->render(
-        status  => 200,
+        status  => 201,
         openapi => { success => Mojo::JSON->true }
     );
 }
@@ -110,7 +114,7 @@ sub update {
     push @{$lines},
       Config::Crontab::Comment->new( -data => "# BLOCKID: $block_id" );
 
-    my $body     = $c->validation->param('body');
+    my $body = $c->validation->param('body');
     for my $comment ( @{ $body->{comments} } ) {
         push @{$lines}, Config::Crontab::Comment->new( -data => "# $comment" );
     }
@@ -137,8 +141,7 @@ sub update {
 sub backup {
     my $c = shift->openapi->valid_input or return;
 
-    my $plugin =
-      Koha::Plugin::Com::PTFSEurope::Crontab->new;
+    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new;
 
     my $ct = Config::Crontab->new();
     $ct->mode('block');
@@ -150,18 +153,18 @@ sub backup {
     };
 
     # Take a backup
-    my $path = $plugin->mbf_dir . '/backups/';
+    my $path       = $plugin->mbf_dir . '/backups/';
     my $now_string = strftime "%F_%H-%M-%S", localtime;
-    my $filename = $path . 'backup_' . $now_string;
+    my $filename   = $path . 'backup_' . $now_string;
     $ct->write("$filename") or do {
-         return $c->render(
+        return $c->render(
             status  => 500,
             openapi => { error => "Could not write to backup: " . $ct->error }
         );
     };
 
     return $c->render(
-        status => 200,
+        status  => 200,
         openapi => { filename => "backup_" . $now_string }
     );
 }

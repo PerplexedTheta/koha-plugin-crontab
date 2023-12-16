@@ -185,10 +185,13 @@
                 };
 
                 if ( !block_id ) {
-                    let posting = $.post(
-                        url,
-                        JSON.stringify(block)
-                    );
+                    let posting = $.ajax({
+                        url: url,
+                        method: 'POST',
+                        data: JSON.stringify(block),
+                        contentType: "application/json; charset=utf-8",
+                        dataType: "json"
+                    });
 
                     posting.done(function(data) {
                         $('#message').replaceWith('<div id="message" class="alert alert-success">Job added: '+data+'</div>');
@@ -203,7 +206,9 @@
                     let putting = $.ajax({
                         method: 'PUT',
                         url: url,
-                        data: JSON.stringify(block)
+                        data: JSON.stringify(block),
+                        contentType: "application/json; charset=utf-8",
+                        dataType: "json"
                     });
 
                     putting.done(function(data) {
@@ -214,6 +219,9 @@
                         $('#message').replaceWith('<div id="message" class="alert alert-danger">Job update failed</div>');
                     });
                 }
+
+                // Close modal
+                $('#jobModal').modal('hide');
             });
 
             $("#backup_now").on('click', function(e){

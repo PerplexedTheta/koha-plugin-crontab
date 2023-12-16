@@ -1,5 +1,5 @@
 ---
-"/blocks":
+/blocks:
   post:
     x-mojo-to: Com::PTFSEurope::Crontab::Controller#add
     operationId: addCronBlock
@@ -13,24 +13,101 @@
         required: true
         schema:
           type: object
-    consumes:
-      - application/json
     produces:
       - application/json
     responses:
-      '201':
+      "201":
         description: Block added
-      '404':
-        description: An error occured
+      "400":
+        description: Bad parameter
         schema:
           type: object
           properties:
             error:
-              description: An explanation for the error
+              description: Error message
               type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "401":
+        description: Authentication required
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "403":
+        description: Access forbidden
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "404":
+        description: Resource not found
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "409":
+        description: Conflict in creating resource
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "500":
+        description: |
+          Internal server error. Possible `error_code` attribute values:
+
+          * `internal_server_error`
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "503":
+        description: Under maintenance
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
     x-koha-authorization:
       permissions:
-        parameters: '1'
+        parameters: "1"
 "/blocks/{block_id}":
   put:
     x-mojo-to: Com::PTFSEurope::Crontab::Controller#update
@@ -46,9 +123,9 @@
     produces:
       - application/json
     responses:
-      '200':
+      "200":
         description: A successful update
-      '404':
+      "404":
         description: An error occured
         schema:
           type: object
@@ -58,8 +135,8 @@
               type: string
     x-koha-authorization:
       permissions:
-        parameters: '1'
-"/backups":
+        parameters: "1"
+/backups:
   post:
     x-mojo-to: Com::PTFSEurope::Crontab::Controller#backup
     operationId: backupCrontab
@@ -68,9 +145,9 @@
     produces:
       - application/json
     responses:
-      '200':
+      "200":
         description: A successful backup
-      '404':
+      "404":
         description: An error occured
         schema:
           type: object
@@ -80,5 +157,5 @@
               type: string
     x-koha-authorization:
       permissions:
-        parameters: '1'
+        parameters: "1"
 
