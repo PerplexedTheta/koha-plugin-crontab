@@ -10,6 +10,8 @@ use Module::Metadata;
 use Config::Crontab;
 use YAML::XS;
 
+use C4::Context;
+
 $YAML::XS::Boolean = "JSON::PP";
 
 #BEGIN {
@@ -84,15 +86,16 @@ sub tool {
 
         # Global environment block
         unless (@events) {
+            push @environment, @comments;
             push @environment, @env;
             next;
         }
 
         my @comments_stripped;
-        for my $comment ( @comments ) {
-           my $stripped = $comment->dump;
-           $stripped =~ s/^# //;
-           push @comments_stripped, $stripped;
+        for my $comment (@comments) {
+            my $stripped = $comment->dump;
+            $stripped =~ s/^# //;
+            push @comments_stripped, $stripped;
         }
 
         push @{$blocks},
@@ -168,14 +171,50 @@ sub install() {
     }
 
     # Set first block to state we're maintained by the plugin
-    my $block = Config::Crontab::Block->new();
-    $block->first(
+    my $header_block = Config::Crontab::Block->new();
+    $header_block->first(
         Config::Crontab::Comment->new(
             -data =>
 "# This crontab file is managed by the Koha Crontab manager plugin"
         )
     );
-    $ct->first($block);
+    $ct->first($header_block);
+
+    # Set some useful global environment if it doesn't already exist
+    unless (!$existing) {
+        my $env_block = Config::Crontab::Block->new();
+        my $env_lines;
+
+        push @{$env_lines},
+          Config::Crontab::Comment->new( -data => '# BLOCKID: 0' );
+
+        push @{$env_lines},
+          Config::Crontab::Env->new(
+            -name   => 'PERL5LIB',
+            -value  => '/usr/share/koha/lib',
+            -active => 1
+          );
+        push @{$env_lines},
+          Config::Crontab::Env->new(
+            -name   => 'KOHA_CRON_PATH',
+            -value  => '/usr/share/koha/bin/cronjobs',
+            -active => 1
+          );
+
+        my $instance = C4::Context->config('database');
+        $instance =~ s/koha_//;
+
+        push @{$env_lines},
+          Config::Crontab::Env->new(
+            -name   => 'KOHA_CONF',
+            -value  => "/etc/koha/sites/$instance/koha-conf.xml",
+            -active => 1
+          );
+
+        $env_block->lines($env_lines);
+
+        $ct->after( $header_block, $env_block );
+    }
 
     # Add a hash so we can tell if the managed content has
     # been modified externally and warn the user during updates
