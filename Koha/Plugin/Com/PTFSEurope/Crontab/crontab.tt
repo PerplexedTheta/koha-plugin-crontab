@@ -77,16 +77,20 @@
                                     </td>
                                     <td></td>
                                     <td>
+                                        <!--
                                         <a class="btn btn-danger" data-toggle="tooltip" data-placement="left" title="stderr"><i class="fa fa-list-alt" aria-hidden="true"></i></a>
                                         <a class="btn btn-primary" data-toggle="tooltip" data-placement="left" title="stdout"><i class="fa fa-list-alt" aria-hidden="true"></i></a>
                                         <a class="btn btn-default"><i class="fa fa-play" aria-hidden="true"></i> Run now</a>
+                                        -->
                                         <button type="button" data-toggle="modal" data-target="#jobModal" data-block="[% block.id | html %]" class="btn btn-primary" id="editjob"><i class="fa fa-edit"></i> Edit</button>
+                                        <!--
                                         [% IF block.events.0.active %]
-                                        <a class="btn btn-default"><i class="fa fa-stop" aria-hidden="true"></i> Disable</a>
+                                        <a class="btn btn-default disable_job"><i class="fa fa-stop" aria-hidden="true"></i> Disable</a>
                                         [% ELSE %]
-                                        <a class="btn btn-default"><i class="fa fa-play" aria-hidden="true"></i> Enable</a>
+                                        <a class="btn btn-default enable_job"><i class="fa fa-play" aria-hidden="true"></i> Enable</a>
                                         [% END %]
-                                        <a class="btn btn-danger"><i class="fa fa-trash" aria-hidden="true"></i> Remove</a>
+                                        -->
+                                        <button type="button" data-toggle="modal" data-target="#deleteModal" data-block="[% block.id | html %]" class="btn btn-danger"><i class="fa fa-trash" aria-hidden="true"></i> Remove</button>
                                     </td>
                                 </tr>
                             [% END %]
@@ -159,6 +163,28 @@
               <input type="hidden" name="block_id" id="block_id">
               <button class="btn btn-default deny cancel" href="#" data-dismiss="modal" aria-hidden="true"><i class="fa fa-times"></i> Cancel</button>
               <button id="job-modal-btn-submit" type="submit" class="btn btn-primary">Save</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Remove Job Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="delete-modal-label">
+      <form id="deleteForm">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="closebtn" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+              <h4 class="modal-title" id="delete-modal-label">Delete job</h4>
+            </div>
+            <div class="modal-body">
+              <p>Are you sure you wish to remove this job?</p>
+            </div>
+            <div class="modal-footer">
+              <input type="hidden" name="block_id" id="delete_id">
+              <button class="btn btn-default deny cancel" href="#" data-dismiss="modal" aria-hidden="true"><i class="fa fa-times"></i> Cancel</button>
+              <button id="delete-modal-btn-submit" type="submit" class="btn btn-primary">Remove</button>
             </div>
           </div>
         </div>
@@ -254,6 +280,40 @@
 
                 // Close modal
                 $('#jobModal').modal('hide');
+            });
+
+            $("#deleteModal").on("shown.bs.modal", function(e){
+                let button = $(e.relatedTarget);
+
+                // Get block id if this is an edit
+                let block_id = button.data('block');
+                $('#delete_id').val(block_id);
+            });
+
+            $("#deleteForm").on('submit', function(e) {
+                e.preventDefault();
+
+                let block_id = $('#delete_id').val();
+                let url = '/api/v1/contrib/crontab/blocks/' + block_id;
+
+                let deleting = $.ajax({
+                    url: url,
+                    method: 'DELETE'
+                });
+
+                posting.done(function(data) {
+                    $('#message').replaceWith('<div id="message" class="alert alert-success">Job removed</div>');
+                    setTimeout(function(){
+                        window.location.reload();
+                    }, 800);
+                });
+
+                posting.fail(function(data) {
+                    $('#message').replaceWith('<div id="message" class="alert alert-danger">Job removal failed</div>');
+                });
+
+                // Close modal
+                $('#deleteModal').modal('hide');
             });
 
             $("#backup_now").on('click', function(e){
