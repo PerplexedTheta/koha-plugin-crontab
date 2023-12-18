@@ -68,14 +68,16 @@ sub tool {
         my $id_line = shift @comments;
 
         # Skip first block (plugin header)
-        next if ($id_line->data =~ 'Koha Crontab manager');
+        next if ( $id_line->data =~ 'Koha Crontab manager' );
 
         # Set block id
         my $id;
         if ( $id_line->data =~ /# BLOCKID: (\d+)/ ) {
             $id = $1;
-        } else {
-            $template->param( error => "Found block with missing ID: " . $id_line->data );
+        }
+        else {
+            $template->param(
+                error => "Found block with missing ID: " . $id_line->data );
             $self->output_html( $template->output() );
             return;
         }
@@ -119,38 +121,42 @@ sub api_namespace {
 sub install() {
     my ( $self, $args ) = @_;
 
+    my $existing = 1;
+
     my $ct = Config::Crontab->new();
     $ct->mode('block');
     $ct->read or do {
-        warn "No crontab found";
-        return 1;
+        $existing = 0;
+        warn "No crontab found, installing default";
     };
 
     # Take a backup
-    my $path = $self->mbf_dir . '/backups/';
-    my $now_string = strftime "%F_%H-%M-%S", localtime;
-    my $filename = $path . 'install_' . $now_string;
-    $ct->write("$filename");
+    if ($existing) {
+        my $path       = $self->mbf_dir . '/backups/';
+        my $now_string = strftime "%F_%H-%M-%S", localtime;
+        my $filename   = $path . 'install_' . $now_string;
+        $ct->write("$filename");
 
-    # Read existing crontab, update it to identify blocks
-    # we can manage
-    # BLOCKID:
-    my $block_id = 1;
-    for my $block ( $ct->blocks ) {
-        for my $comment (
-            $block->select(
-                -type    => 'comment',
-                -data_re => 'Koha Crontab manager'
-            )
-          )
-        {
-            return 1;    # Already installed
+        # Read existing crontab, update it to identify blocks
+        # we can manage
+        # BLOCKID:
+        my $block_id = 1;
+        for my $block ( $ct->blocks ) {
+            for my $comment (
+                $block->select(
+                    -type    => 'comment',
+                    -data_re => 'Koha Crontab manager'
+                )
+              )
+            {
+                return 1;    # Already installed
+            }
+            $block->first(
+                Config::Crontab::Comment->new(
+                    -data => "# BLOCKID: " . $block_id++
+                )
+            );
         }
-        $block->first(
-            Config::Crontab::Comment->new(
-                -data => "# BLOCKID: " . $block_id++
-            )
-        );
     }
 
     # Set first block to state we're maintained by the plugin
@@ -167,6 +173,7 @@ sub install() {
     # been modified externally and warn the user during updates
 
     ## write out crontab file
+    warn "Writing crontab: " . $ct->dump;
     $ct->write;
 
     return 1;
