@@ -140,6 +140,7 @@ sub install() {
         warn "No crontab found, installing default";
     };
 
+    my $global_env = 0;
     if ($existing) {
 
         # Take a backup
@@ -151,7 +152,7 @@ sub install() {
         # Read existing crontab, update it to identify blocks
         # we can manage
         # BLOCKID:
-        my $block_id = 1;
+        my $block_id = 0;
         for my $block ( $ct->blocks ) {
             for my $comment (
                 $block->select(
@@ -162,11 +163,25 @@ sub install() {
             {
                 return 1;    # Already installed
             }
-            $block->first(
-                Config::Crontab::Comment->new(
-                    -data => "# BLOCKID: " . $block_id++
-                )
-            );
+
+            if ( $block_id == 0 ) {
+                my @env      = $block->select( -type => 'env' );
+                my @events   = $block->select( -type => 'event' );
+                if ( @env && !@events ) {
+                    $global_env = 1;
+                    $block->first(
+                        Config::Crontab::Comment->new(
+                            -data => "# BLOCKID: " . $block_id
+                        )
+                    );
+                }
+            } else {
+                $block->first(
+                    Config::Crontab::Comment->new(
+                        -data => "# BLOCKID: " . ++$block_id
+                    )
+                );
+            }
         }
     }
 
@@ -181,7 +196,7 @@ sub install() {
     $ct->first($header_block);
 
     # Set some useful global environment if it doesn't already exist
-    unless ( !$existing ) {
+    if ( !$global_env ) {
         my $env_block = Config::Crontab::Block->new();
         my $env_lines;
 
