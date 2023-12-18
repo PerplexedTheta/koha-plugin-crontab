@@ -77,8 +77,8 @@
                                     </td>
                                     <td></td>
                                     <td>
-                                        <a class="btn btn-danger" data-toggle="tooltip" data-placement="left" title="stderr" href="<%= JSON.parse(routes).logger + '?id=' + crontab._id %>" target="_blank"><i class="fa fa-list-alt" aria-hidden="true"></i></a>
-                                        <a class="btn btn-primary" data-toggle="tooltip" data-placement="left" title="stdout" href="<%= JSON.parse(routes).stdout + '?id=' + crontab._id %>" target="_blank"><i class="fa fa-list-alt" aria-hidden="true"></i></a>
+                                        <a class="btn btn-danger" data-toggle="tooltip" data-placement="left" title="stderr"><i class="fa fa-list-alt" aria-hidden="true"></i></a>
+                                        <a class="btn btn-primary" data-toggle="tooltip" data-placement="left" title="stdout"><i class="fa fa-list-alt" aria-hidden="true"></i></a>
                                         <a class="btn btn-default"><i class="fa fa-play" aria-hidden="true"></i> Run now</a>
                                         <button type="button" data-toggle="modal" data-target="#jobModal" data-block="[% block.id | html %]" class="btn btn-primary" id="editjob"><i class="fa fa-edit"></i> Edit</button>
                                         [% IF block.events.0.active %]
@@ -141,7 +141,8 @@
                   <textarea class="form-control" id="job-comment"></textarea>
   
                   <label for="job-schedule">Schedule</label>
-                  <input type="text" class="form-control" id="job-schedule"></input>
+                  <input type="text" class="form-control" id="job-schedule" placeholder="* * * * *"></input>
+                  <div class="hint"><a href="https://crontab-generator.com" target="_blank">Need help?</a></div>
      
                   <label for="job-command">Command</label>
                   <input type="text" class="form-control" id="job-command"></input>
