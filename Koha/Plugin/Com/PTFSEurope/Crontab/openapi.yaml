@@ -125,14 +125,93 @@
     responses:
       "200":
         description: A successful update
-      "404":
-        description: An error occured
+      "400":
+        description: Bad parameter
         schema:
           type: object
           properties:
             error:
-              description: An explanation for the error
+              description: Error message
               type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "401":
+        description: Authentication required
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "403":
+        description: Access forbidden
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "404":
+        description: Resource not found
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "409":
+        description: Conflict in updating resource
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "500":
+        description: |
+          Internal server error. Possible `error_code` attribute values:
+
+          * `internal_server_error`
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "503":
+        description: Under maintenance
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
     x-koha-authorization:
       permissions:
         parameters: "1"

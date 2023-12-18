@@ -31,14 +31,14 @@ sub add {
     };
 
     my $last_block = 0;
-    my @id_lines = $ct->select( -type => 'comment', -data => "# BLOCKID: " );
-    if ( @id_lines ) {
+    my @id_lines   = $ct->select( -type => 'comment', -data => "# BLOCKID: " );
+    if (@id_lines) {
         $id_lines[-1]->data() =~ /.*(\d+)/;
         $last_block = $1;
     }
-    my $next_block  = $last_block + 1;
 
-    my $body = $c->validation->param('body');
+    my $next_block = $last_block + 1;
+    my $body       = $c->req->json;
 
     # Construct new block
     my $lines;
@@ -107,6 +107,7 @@ sub update {
     }
 
     my $block = $ct->block( $id_lines[0] );
+    my $body  = $c->req->json;
 
     # Construct new block
     my $lines;
@@ -114,18 +115,36 @@ sub update {
     push @{$lines},
       Config::Crontab::Comment->new( -data => "# BLOCKID: $block_id" );
 
-    my $body = $c->validation->param('body');
     for my $comment ( @{ $body->{comments} } ) {
         push @{$lines}, Config::Crontab::Comment->new( -data => "# $comment" );
     }
-    ## TODO: Add Event and Environment handling as needed?
+
+    # Events
+    for my $event ( @{ $body->{events} } ) {
+        warn "Creating new event block with details: ";
+        warn Dumper($event);
+        push @{$lines},
+          Config::Crontab::Event->new(
+            -datetime => $event->{schedule},
+            -command  => $event->{command}
+          );
+    }
+
+    ## TODO: Add Environment handling as needed?
+
+    # Set block lines
+    $newblock->lines($lines);
 
     # Replace block
+    use Data::Dumper;
+    warn "Replacing block: " . Dumper($block);
+    warn "with block: " . Dumper($newblock);
     $ct->replace( $block, $newblock );
 
     # Write to crontab
     $ct->write
       or do {
+        warn "Failed to write on update";
         return $c->render(
             status  => 500,
             openapi => { error => "Could not write to crontab: " . $ct->error }
