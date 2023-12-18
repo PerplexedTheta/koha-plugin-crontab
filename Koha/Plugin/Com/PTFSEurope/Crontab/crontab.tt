@@ -301,14 +301,14 @@
                     method: 'DELETE'
                 });
 
-                posting.done(function(data) {
+                deleting.done(function(data) {
                     $('#message').replaceWith('<div id="message" class="alert alert-success">Job removed</div>');
                     setTimeout(function(){
                         window.location.reload();
                     }, 800);
                 });
 
-                posting.fail(function(data) {
+                deleting.fail(function(data) {
                     $('#message').replaceWith('<div id="message" class="alert alert-danger">Job removal failed</div>');
                 });
 

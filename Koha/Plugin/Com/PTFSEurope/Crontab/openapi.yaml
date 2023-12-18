@@ -215,6 +215,113 @@
     x-koha-authorization:
       permissions:
         parameters: "1"
+  delete:
+    x-mojo-to: Com::PTFSEurope::Crontab::Controller#delete
+    operationId: deleteBlock
+    tags:
+      - cronjobs
+    summary: Delete cron block
+    parameters:
+      - name: block_id
+        in: path
+        description: Internal cron block identifier
+        required: true
+        type: integer
+    produces:
+      - application/json
+    responses:
+      "204":
+        description: Block deleted
+      "400":
+        description: Bad parameter
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "401":
+        description: Authentication required
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "403":
+        description: Access forbidden
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "404":
+        description: Resource not found
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "409":
+        description: Conflict in updating resource
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "500":
+        description: |
+          Internal server error. Possible `error_code` attribute values:
+
+          * `internal_server_error`
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+      "503":
+        description: Under maintenance
+        schema:
+          type: object
+          properties:
+            error:
+              description: Error message
+              type: string
+            error_code:
+              description: Error code
+              type: string
+          additionalProperties: true
+    x-koha-authorization:
+      permissions:
+        parameters: "1"
 /backups:
   post:
     x-mojo-to: Com::PTFSEurope::Crontab::Controller#backup

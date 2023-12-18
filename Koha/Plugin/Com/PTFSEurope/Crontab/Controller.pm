@@ -151,6 +151,52 @@ sub update {
     );
 }
 
+sub delete {
+    my $c = shift->openapi->valid_input or return;
+
+    my $ct = Config::Crontab->new();
+    $ct->mode('block');
+    $ct->read or do {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Could not read crontab file" }
+        );
+    };
+
+    # Find block
+    my $block_id = $c->validation->param('block_id');
+    my @id_lines =
+      $ct->select( -type => 'comment', -data => "# BLOCKID: $block_id" );
+    unless ( scalar @id_lines == 1 ) {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Could not uniquely identify cronjob block." }
+        );
+    }
+
+    my $block = $ct->block( $id_lines[0] );
+    $ct->remove($block) or do {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Could not remove block: " . $ct->error }
+        );
+    };
+
+    # Write to crontab
+    $ct->write
+      or do {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Could not write to crontab: " . $ct->error }
+        );
+      };
+
+    return $c->render(
+        status  => 204,
+        openapi => { success => Mojo::JSON->true }
+    );
+}
+
 sub backup {
     my $c = shift->openapi->valid_input or return;
 
