@@ -38,18 +38,15 @@
                       There was an error: [% error | html %]
                     [% END %]
                     <h1>Cronjobs</h1>
-                    <div class="form-group">
-                        <label for="env_vars">Environment Variables:</label>
-                        <textarea class="form-control" rows="3" id="env_vars" placeholder="# Please set PATH, MAILTO, HOME... here">
-                        [%- PROCESS environments environment -%]
-                        </textarea>
+                    <div class="page-section">
+                        <pre>[%- PROCESS environments environment -%]</pre>
                     </div>
 
                     <div id="toolbar" class="btn-toolbar">
                         <button type="button" data-toggle="modal" data-target="#jobModal" class="btn btn-primary" id="newjob"><i class="fa fa-plus"></i> New </button>
-                        <a class="btn btn-default" id="backup_now"><i class="fa fa-save"></i> Backup</a>
+                        <button type="button" data-toggle="modal" data-target="#environmentModal" class="btn btn-default" id="env"><i class="fa fa-hashtag"></i> Edit environment</button>
+                        <a class="btn btn-default" id="backup_now"><i class="fa fa-archive"></i> Backup</a>
                         <a class="btn btn-default" id="reload_now" href="/cgi-bin/koha/plugins/run.pl?class=Koha%3A%3APlugin%3A%3ACom%3A%3APTFSEurope%3A%3ACrontab&method=tool"><i class="fa fa-repeat"></i> Get from crontab</a>
-                        <a class="btn btn-default" id="save_now"><i class="fa fa-save"></i> Save to crontab</a>
                     </div>
 
                     <div class="page-section">
@@ -99,6 +96,33 @@
                 </main>
             </div>
         </div>
+    </div>
+
+    <!-- Add/Edit Environment Modal -->
+    <div class="modal fade" id="environmentModal" tabindex="-1" role="dialog" aria-labelledby="environment-modal-label">
+      <form id="environmentForm">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="closebtn" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+              <h4 class="modal-title" id="environment-modal-label"></h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="env_vars">Environment Variables:</label>
+                    <textarea class="form-control" rows="5" id="env_vars" placeholder="# Please set PATH, MAILTO, HOME... here">
+                    [%- PROCESS environments environment -%]
+                    </textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+              <input type="hidden" name="block_id" id="block_id">
+              <button class="btn btn-default deny cancel" href="#" data-dismiss="modal" aria-hidden="true"><i class="fa fa-times"></i> Cancel</button>
+              <button id="environment-modal-btn-submit" type="submit" class="btn btn-primary">Save</button>
+            </div>
+          </div>
+        </div>
+      </form>
     </div>
 
     <!-- Add/Edit Job Modal -->
@@ -184,6 +208,7 @@
                     }]
                 };
 
+                let success = 0;
                 if ( !block_id ) {
                     let posting = $.ajax({
                         url: url,
@@ -195,6 +220,9 @@
 
                     posting.done(function(data) {
                         $('#message').replaceWith('<div id="message" class="alert alert-success">Job added: '+data+'</div>');
+                        setTimeout(function(){
+                            window.location.reload();
+                        }, 800);
                     });
 
                     posting.fail(function(data) {
@@ -213,6 +241,9 @@
 
                     putting.done(function(data) {
                         $('#message').replaceWith('<div id="message" class="alert alert-success">Job updated: '+data+'</div>');
+                        setTimeout(function(){
+                            window.location.reload();
+                        }, 800);
                     });
 
                     putting.fail(function(data) {
@@ -222,9 +253,6 @@
 
                 // Close modal
                 $('#jobModal').modal('hide');
-                setTimeout(function(){
-                    window.location.reload();
-                }, 800);
             });
 
             $("#backup_now").on('click', function(e){
