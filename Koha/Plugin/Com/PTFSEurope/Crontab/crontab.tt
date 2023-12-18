@@ -7,7 +7,7 @@
 [% BLOCK comments %]
 <pre id="comment-[% block.id %]">
 [%- FOR comment IN block.comments -%]
-[%- comment.dump %]
+[%- comment %]
 [% END -%]
 </pre>
 [%- END %]

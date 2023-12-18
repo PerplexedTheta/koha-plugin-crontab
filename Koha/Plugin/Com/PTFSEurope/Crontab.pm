@@ -88,10 +88,17 @@ sub tool {
             next;
         }
 
+        my @comments_stripped;
+        for my $comment ( @comments ) {
+           my $stripped = $comment->dump;
+           $stripped =~ s/^# //;
+           push @comments_stripped, $stripped;
+        }
+
         push @{$blocks},
           {
             id          => $id,
-            comments    => \@comments,
+            comments    => \@comments_stripped,
             environment => \@env,
             events      => \@events
           };
