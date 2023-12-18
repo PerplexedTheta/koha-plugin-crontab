@@ -126,7 +126,7 @@
                 <div class="form-group">
                   <h2>Output</h2>
                   <label for="job-output">Standard out</label>
-                  <label for="job-errors">Standard error</label>                
+                  <label for="job-errors">Standard error</label> 
                 </div>
                 
             </div>
@@ -222,6 +222,9 @@
 
                 // Close modal
                 $('#jobModal').modal('hide');
+                setTimeout(function(){
+                    window.location.reload();
+                }, 800);
             });
 
             $("#backup_now").on('click', function(e){
