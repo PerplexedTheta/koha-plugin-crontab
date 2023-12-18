@@ -31,7 +31,7 @@ sub add {
     };
 
     my $last_block = 0;
-    my @id_lines   = $ct->select( -type => 'comment', -data => "# BLOCKID: " );
+    my @id_lines = $ct->select( -type => 'comment', -data_re => "# BLOCKID: " );
     if (@id_lines) {
         $id_lines[-1]->data() =~ /.*(\d+)/;
         $last_block = $1;

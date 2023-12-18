@@ -181,7 +181,7 @@ sub install() {
     $ct->first($header_block);
 
     # Set some useful global environment if it doesn't already exist
-    unless (!$existing) {
+    unless ( !$existing ) {
         my $env_block = Config::Crontab::Block->new();
         my $env_lines;
 
