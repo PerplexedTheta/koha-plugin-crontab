@@ -121,8 +121,6 @@ sub update {
 
     # Events
     for my $event ( @{ $body->{events} } ) {
-        warn "Creating new event block with details: ";
-        warn Dumper($event);
         push @{$lines},
           Config::Crontab::Event->new(
             -datetime => $event->{schedule},
@@ -136,15 +134,11 @@ sub update {
     $newblock->lines($lines);
 
     # Replace block
-    use Data::Dumper;
-    warn "Replacing block: " . Dumper($block);
-    warn "with block: " . Dumper($newblock);
     $ct->replace( $block, $newblock );
 
     # Write to crontab
     $ct->write
       or do {
-        warn "Failed to write on update";
         return $c->render(
             status  => 500,
             openapi => { error => "Could not write to crontab: " . $ct->error }
