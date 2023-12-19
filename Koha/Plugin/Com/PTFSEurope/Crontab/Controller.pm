@@ -115,8 +115,15 @@ sub update {
     push @{$lines},
       Config::Crontab::Comment->new( -data => "# BLOCKID: $block_id" );
 
+    # Comments
     for my $comment ( @{ $body->{comments} } ) {
         push @{$lines}, Config::Crontab::Comment->new( -data => "# $comment" );
+    }
+
+    # Environment
+    for my $environment ( @{ $body->{environments} } ) {
+        push @{$lines},
+          Config::Crontab::Env->new( -data => $environment );
     }
 
     # Events
@@ -127,8 +134,6 @@ sub update {
             -command  => $event->{command}
           );
     }
-
-    ## TODO: Add Environment handling as needed?
 
     # Set block lines
     $newblock->lines($lines);
@@ -193,6 +198,71 @@ sub delete {
 
     return $c->render(
         status  => 204,
+        openapi => { success => Mojo::JSON->true }
+    );
+}
+
+sub update_environment {
+    my $c = shift->openapi->valid_input or return;
+
+    my $ct = Config::Crontab->new();
+    $ct->mode('block');
+    $ct->read or do {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Could not read crontab file" }
+        );
+    };
+
+    # Environment is special BLOCKID: 0
+    my $block_id = 0;
+    my @id_lines =
+      $ct->select( -type => 'comment', -data => "# BLOCKID: $block_id" );
+    unless ( scalar @id_lines == 1 ) {
+        return $c->render(
+            status  => 500,
+            openapi =>
+              { error => "Could not uniquely identify environment block." }
+        );
+    }
+
+    my $block = $ct->block( $id_lines[0] );
+    my $body  = $c->req->json;
+
+    # Construct new block
+    my $lines;
+    my $newblock = Config::Crontab::Block->new();
+    push @{$lines},
+      Config::Crontab::Comment->new( -data => "# BLOCKID: $block_id" );
+
+    # Comments
+    for my $comment ( @{ $body->{comments} } ) {
+        push @{$lines}, Config::Crontab::Comment->new( -data => "$comment" );
+    }
+
+    # Environment
+    for my $environment ( @{ $body->{environments} } ) {
+        push @{$lines},
+          Config::Crontab::Env->new( -data => "$environment" );
+    }
+
+    # Set block lines
+    $newblock->lines($lines);
+
+    # Replace block
+    $ct->replace( $block, $newblock );
+
+    # Write to crontab
+    $ct->write
+      or do {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Could not write to crontab: " . $ct->error }
+        );
+      };
+
+    return $c->render(
+        status  => 200,
         openapi => { success => Mojo::JSON->true }
     );
 }

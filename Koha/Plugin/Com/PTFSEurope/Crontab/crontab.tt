@@ -284,24 +284,25 @@
 
             $("#environmentForm").on('submit', function(e) {
                 e.preventDefault();
+
+                console.log("Called environmentForm submit");
                 
-                let url = '/api/v1/contrib/crontab/blocks/0';
+                let url = '/api/v1/contrib/crontab/environment';
                 let comments = [];
-                let env = [];
+                let environments = [];
 
                 let content = $('#env-content').val().split('\n');
                 for ( let line in content ) {
-                    if ( line.startsWith("#") {
+                    if ( line.startsWith("#") ) {
                         comments.push(line);
                     } else {
-                        environment.push(line);
+                        environments.push(line);
                     }
                 }
 
                 let block = {
-                    'id': 0,
                     'comments': comments,
-                    'evironment': environment
+                    'evironments': environments
                 };
 
                 let putting = $.ajax({
