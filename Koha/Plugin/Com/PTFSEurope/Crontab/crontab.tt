@@ -292,18 +292,21 @@
                 let environments = [];
 
                 let content = $('#env-content').val().split('\n');
-                for ( let line in content ) {
+                content.forEach(function(line) {
                     if ( line.startsWith("#") ) {
                         comments.push(line);
-                    } else {
+                    }
+                    else if(line.trim().length !== 0) {
                         environments.push(line);
                     }
-                }
+                });
 
                 let block = {
                     'comments': comments,
-                    'evironments': environments
+                    'environments': environments
                 };
+
+                console.log
 
                 let putting = $.ajax({
                     method: 'PUT',
