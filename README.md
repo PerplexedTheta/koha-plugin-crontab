@@ -2,7 +2,7 @@
 
 This is a plugin for [Koha](http://koha-community.org) that simplifies the management of a koha instances local crontab.
 
-We put the power in the hands of the user by exposing the local crontab to them as a tool plugin, allowing them to edit 
+We put the power in the hands of the user by exposing the local crontab to them as an administration tool plugin, allowing them to edit 
 existing lines, schedules and environment as well as adding new jobs all from within the staff UI.
 
 # Installation
@@ -16,8 +16,7 @@ To set up the Koha plugin system you must first make some changes to your instal
 * Add the pluginsdir to your apache PERL5LIB paths and koha-plack startup scripts PERL5LIB
 * Restart your webserver
 
-Once set up is complete you will need to alter your UseKohaPlugins system preference. On the Tools page you will see the
-Tools Plugins and on the Reports page you will see the Reports Plugins.
+Once set up is complete you will need to alter your UseKohaPlugins system preference.
 
 ## Add dependencies
 

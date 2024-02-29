@@ -13,4 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add install method to parse and manipulate crontab for the first time
 - Add API endpoint for updateing cron lines
 
+## Changed
+
+- Updated from tool to admin tool
+
 

@@ -46,7 +46,7 @@
                         <button type="button" data-toggle="modal" data-target="#jobModal" class="btn btn-primary" id="newjob"><i class="fa fa-plus"></i> New </button>
                         <button type="button" data-toggle="modal" data-target="#environmentModal" class="btn btn-default" id="env"><i class="fa fa-hashtag"></i> Edit environment</button>
                         <a class="btn btn-default" id="backup_now"><i class="fa fa-archive"></i> Backup</a>
-                        <a class="btn btn-default" id="reload_now" href="/cgi-bin/koha/plugins/run.pl?class=Koha%3A%3APlugin%3A%3ACom%3A%3APTFSEurope%3A%3ACrontab&method=tool"><i class="fa fa-repeat"></i> Get from crontab</a>
+                        <a class="btn btn-default" id="reload_now" href="/cgi-bin/koha/plugins/run.pl?class=Koha%3A%3APlugin%3A%3ACom%3A%3APTFSEurope%3A%3ACrontab&method=admin"><i class="fa fa-repeat"></i> Get from crontab</a>
                     </div>
 
                     <div class="page-section">

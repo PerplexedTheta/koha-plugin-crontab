@@ -26,7 +26,7 @@ our $VERSION  = "{VERSION}";
 our $metadata = {
     name            => 'Crontab',
     author          => 'Martin Renvoize',
-    description     => 'Add instance crontab management to Koha',
+    description     => 'Script scheduling',
     date_authored   => '2023-04-25',
     date_updated    => "1970-01-01",
     minimum_version => '22.1100000',
@@ -43,7 +43,7 @@ sub new {
     return $self;
 }
 
-sub tool {
+sub admin {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
