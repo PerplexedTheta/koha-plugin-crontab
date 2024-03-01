@@ -3,6 +3,9 @@ use utf8;
 package Koha::Plugin::Com::PTFSEurope::Crontab::Controller;
 
 use Modern::Perl;
+
+use C4::Log qw( logaction );
+
 use Koha::Plugin::Com::PTFSEurope::Crontab;
 
 use Mojo::Base 'Mojolicious::Controller';
@@ -20,6 +23,8 @@ use Config::Crontab;
 
 sub add {
     my $c = shift->openapi->valid_input or return;
+
+    my $logging = $self->retrieve_data('enable_logging') // 1;
 
     my $ct = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
@@ -79,6 +84,8 @@ sub add {
         );
       };
 
+    logaction( "CRONTAB", "CREATE", $next_block, $newblock->dump ) if $logging;
+
     return $c->render(
         status  => 201,
         openapi => { success => Mojo::JSON->true }
@@ -87,6 +94,8 @@ sub add {
 
 sub update {
     my $c = shift->openapi->valid_input or return;
+
+    my $logging = $self->retrieve_data('enable_logging') // 1;
 
     my $ct = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
@@ -154,6 +163,8 @@ sub update {
         );
       };
 
+    logaction( "CRONTAB", "UPDATE", $block_id, $newblock->dump ) if $logging;
+
     return $c->render(
         status  => 200,
         openapi => { success => Mojo::JSON->true }
@@ -162,6 +173,8 @@ sub update {
 
 sub delete {
     my $c = shift->openapi->valid_input or return;
+
+    my $logging = $self->retrieve_data('enable_logging') // 1;
 
     my $ct = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
@@ -202,6 +215,8 @@ sub delete {
         );
       };
 
+    logaction( "CRONTAB", "DELETE", $block_id, $block->dump ) if $logging;
+
     return $c->render(
         status  => 204,
         openapi => { success => Mojo::JSON->true }
@@ -210,6 +225,8 @@ sub delete {
 
 sub update_environment {
     my $c = shift->openapi->valid_input or return;
+
+    my $logging = $self->retrieve_data('enable_logging') // 1;
 
     my $ct = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
@@ -268,6 +285,8 @@ sub update_environment {
             openapi => { error => "Could not write to crontab: " . $ct->error }
         );
       };
+
+    logaction( "CRONTAB", "ENVIRONMENT", 0, $newblock->dump ) if $logging;
 
     return $c->render(
         status  => 200,
