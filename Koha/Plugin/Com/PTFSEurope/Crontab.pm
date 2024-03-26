@@ -47,10 +47,23 @@ sub admin {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
+    if ( my $koha_plugin_crontab_user_allowlist =
+        C4::Context->config('koha_plugin_crontab_user_allowlist') )
+    {
+        my @borrowernumbers = split( ',', $koha_plugin_crontab_user_allowlist );
+        my $bn              = C4::Context->userenv->{number};
+        unless ( grep( /^$bn$/, @borrowernumbers ) ) {
+            my $t = $self->get_template( { file => 'access_denied.tt' } );
+            $self->output_html( $t->output() );
+            exit 0;
+        }
+    }
+
     my $template = $self->get_template( { file => 'crontab.tt' } );
 
     my $ct = Config::Crontab->new();
-    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
+    my $cron_file =
+      C4::Context->config('koha_plugin_crontab_cronfile') || undef;
     $ct->file($cron_file) if $cron_file;
     $ct->mode('block');
     $ct->read or do {
@@ -145,9 +158,7 @@ sub configure {
 
         ## Grab the values we already have for our settings, if any exist
         $template->param(
-            enable_logging =>
-              $self->retrieve_data('enable_logging'),
-        );
+            enable_logging => $self->retrieve_data('enable_logging'), );
 
         $self->output_html( $template->output() );
     }
@@ -167,7 +178,8 @@ sub install() {
     my $existing = 1;
 
     my $ct = Config::Crontab->new();
-    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
+    my $cron_file =
+      C4::Context->config('koha_plugin_crontab_cronfile') || undef;
     $ct->file($cron_file) if $cron_file;
     $ct->mode('block');
     $ct->read or do {
@@ -200,8 +212,8 @@ sub install() {
             }
 
             if ( $block_id == 0 ) {
-                my @env      = $block->select( -type => 'env' );
-                my @events   = $block->select( -type => 'event' );
+                my @env    = $block->select( -type => 'env' );
+                my @events = $block->select( -type => 'event' );
                 if ( @env && !@events ) {
                     $global_env = 1;
                     $block->first(
@@ -210,7 +222,8 @@ sub install() {
                         )
                     );
                 }
-            } else {
+            }
+            else {
                 $block->first(
                     Config::Crontab::Comment->new(
                         -data => "# BLOCKID: " . ++$block_id
