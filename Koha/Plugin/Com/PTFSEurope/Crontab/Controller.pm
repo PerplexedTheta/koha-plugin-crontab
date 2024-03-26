@@ -13,6 +13,8 @@ use Mojo::Base 'Mojolicious::Controller';
 use POSIX qw(strftime);
 use Config::Crontab;
 
+use C4::Log;
+
 =head1 API
 
 =head2 Class Methods
@@ -84,7 +86,7 @@ sub add {
         );
       };
 
-    logaction( "CRONTAB", "CREATE", $next_block, $newblock->dump ) if $logging;
+    logaction( 'SYSTEMPREFERENCE', 'ADD', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
 
     return $c->render(
         status  => 201,
@@ -163,7 +165,7 @@ sub update {
         );
       };
 
-    logaction( "CRONTAB", "UPDATE", $block_id, $newblock->dump ) if $logging;
+    logaction( 'SYSTEMPREFERENCE', 'MODIFY', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
 
     return $c->render(
         status  => 200,
@@ -215,7 +217,7 @@ sub delete {
         );
       };
 
-    logaction( "CRONTAB", "DELETE", $block_id, $block->dump ) if $logging;
+    logaction( 'SYSTEMPREFERENCE', 'DELETE', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
 
     return $c->render(
         status  => 204,
@@ -286,7 +288,7 @@ sub update_environment {
         );
       };
 
-    logaction( "CRONTAB", "ENVIRONMENT", 0, $newblock->dump ) if $logging;
+    logaction( 'SYSTEMPREFERENCE', 'MODIFY', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
 
     return $c->render(
         status  => 200,
