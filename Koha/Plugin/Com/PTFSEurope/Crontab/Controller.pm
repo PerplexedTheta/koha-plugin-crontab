@@ -26,7 +26,8 @@ use C4::Log;
 sub add {
     my $c = shift->openapi->valid_input or return;
 
-    my $logging = $self->retrieve_data('enable_logging') // 1;
+    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+    my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
     my $ct = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
@@ -97,7 +98,8 @@ sub add {
 sub update {
     my $c = shift->openapi->valid_input or return;
 
-    my $logging = $self->retrieve_data('enable_logging') // 1;
+    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+    my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
     my $ct = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
@@ -176,7 +178,8 @@ sub update {
 sub delete {
     my $c = shift->openapi->valid_input or return;
 
-    my $logging = $self->retrieve_data('enable_logging') // 1;
+    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+    my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
     my $ct = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
@@ -228,7 +231,8 @@ sub delete {
 sub update_environment {
     my $c = shift->openapi->valid_input or return;
 
-    my $logging = $self->retrieve_data('enable_logging') // 1;
+    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+    my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
     my $ct = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
@@ -299,7 +303,7 @@ sub update_environment {
 sub backup {
     my $c = shift->openapi->valid_input or return;
 
-    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new;
+    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
 
     my $ct = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
