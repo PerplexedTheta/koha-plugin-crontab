@@ -1,59 +1,87 @@
 [% USE Koha %]
+[% USE raw %]
+[% PROCESS 'i18n.inc' %]
+[% SET footerjs = 1 %]
 [% INCLUDE 'doc-head-open.inc' %]
-<title>Configuration &rsaquo; Crontab &rsaquo; Koha</title>
+<title>Crontab: Configure &rsaquo; Plugins &rsaquo; Administration &rsaquo; Koha</title>
 [% INCLUDE 'doc-head-close.inc' %]
 </head>
-<body>
-[% WRAPPER 'header.inc' %]
-    [% INCLUDE 'prefs-admin-search.inc' %]
-[% END %]
 
-<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Crontab &rsaquo; Configuration</div>
+<body id="crontab_plugin_configure" class="plugin">
+    [% WRAPPER 'header.inc' %]
+        [% INCLUDE 'prefs-admin-search.inc' %]
+    [% END %]
 
-<div class="main container-fluid">
-    <div class="row">
+    [% WRAPPER 'sub-header.inc' %]
+        [% WRAPPER breadcrumbs %]
+            [% WRAPPER breadcrumb_item %]
+                <a href="/cgi-bin/koha/admin/admin-home.pl">Administration</a>
+            [% END %]
+            [% WRAPPER breadcrumb_item %]
+                <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a>
+            [% END %]
+            [% WRAPPER breadcrumb_item bc_active= 1 %]
+                <span>Crontab: Configure</span>
+            [% END %]
+        [% END #/ WRAPPER breadcrumbs %]
+    [% END #/ WRAPPER sub-header.inc %]
 
-        <div class="col-sm-10 col-sm-push-2">
-            <main>
+    <div class="main container-fluid">
+        <div class="row">
+            <div class="col-md-10 order-md-2 order-sm-1">
+                <main>
+                    <h1>Crontab: Configuration</h1>
+                    <!-- Notice our form here has no 'action', this is good, it means that our forms will always get passed back to 'plugins/run.pl'. You could hard code it instead if you prefer -->
+                    <form method="get">
+                        <!-- Always pass these two parameters so the plugin system knows what to execute! -->
+                        <input type="hidden" name="class" value="[% CLASS %]"/>
+                        <input type="hidden" name="method" value="[% METHOD %]"/>
 
-                <h1>Koha: Crontab: Configuration</h1>
-                <!-- Notice our form here has no 'action', this is good, it means that our forms will always get passed back to 'plugins/run.pl'. You could hard code it instead if you prefer -->
-                <form method="get">
-                    <!-- Always pass these two parameters so the plugin system knows what to execute! -->
-                    <input type="hidden" name="class" value="[% CLASS %]"/>
-                    <input type="hidden" name="method" value="[% METHOD %]"/>
+                        <fieldset class="rows">
+                            <legend>Global Settings</legend>
 
-                    <fieldset class="rows">
-                        <legend>Global Settings</legend>
+                            <ol>
+                                <li>
+                                    <label for="enable_logging">Enable logging: </label>
+                                    <select name="enable_logging">
+                                        [% IF enable_logging == 'No' %]
+                                            <option value="No" selected="selected">No</option>
+                                        [% ELSE %]
+                                            <option value="No">No</option>
+                                        [% END %]
 
-                        <ol>
-                            <li>
-                                <label for="enable_logging">Enable logging: </label>
-                                <select name="enable_logging">
-                                    [% IF enable_logging == 'No' %]
-                                        <option value="No" selected="selected">No</option>
-                                    [% ELSE %]
-                                        <option value="No">No</option>
-                                    [% END %]
+                                        [% IF enable_logging == 'Yes' %]
+                                            <option value="Yes" selected="selected">Yes</option>
+                                        [% ELSE %]
+                                            <option value="Yes">Yes</option>
+                                        [% END %]
+                                    </select>
+                                </li>
+                            </ol>
+                        </fieldset>
 
-                                    [% IF enable_logging == 'Yes' %]
-                                        <option value="Yes" selected="selected">Yes</option>
-                                    [% ELSE %]
-                                        <option value="Yes">Yes</option>
-                                    [% END %]
-                                </select>
-                            </li>
-                        </ol>
-                    </fieldset>
-
-                    <fieldset class="action">
-                         <input type="hidden" name="save" value="1" />
-                         <input type="submit" value="Save configuration" />
-                         <a class="cancel" href="/cgi-bin/koha/plugins/run.pl?class=Koha%3A%3APlugin%3A%3ACom%3A%3APTFSEurope%3A%3ACrontab&method=configure">Cancel</a>
-                    </fieldset>
-                </form>
-            </main>
+                        <fieldset class="action">
+                            <input type="hidden" name="save" value="1" />
+                            <input class="btn btn-primary" type="submit" value="Save" />
+                            <a class="cancel" href="/cgi-bin/koha/plugins/run.pl?class=Koha%3A%3APlugin%3A%3ACom%3A%3APTFSEurope%3A%3ACrontab&method=configure">Cancel</a>
+                        </fieldset>
+                    </form>
+                </main>
+            </div> <!-- /.col-md-10.order-md-2 -->
+            <div class="col-md-2 order-sm-2 order-md-1">
+                <aside>
+                    [% INCLUDE 'admin-menu.inc' %]
+                </aside>
+            </div> <!-- /.col-md-2.order-md-1 -->
         </div>
     </div>
+
+    [% MACRO jsinclude BLOCK %]
+        <script>
+            $( document ).ready( function() {
+                $('#navmenulist a[href$="/cgi-bin/koha/plugins/plugins-home.pl"]').addClass("current");
+            } );
+        </script>
+    [% END %]
 
 [% INCLUDE 'intranet-bottom.inc' %]
