@@ -5,20 +5,66 @@
 [% INCLUDE 'doc-head-open.inc' %]
 <title>Crontab: Administer &rsaquo; Plugins &rsaquo; Administration &rsaquo; Koha</title>
 [% INCLUDE 'doc-head-close.inc' %]
+<style>
+.data-list-input {
+    position: relative;
+}
+
+.data-list-input select,
+.data-list-input select:focus {
+    display: none;
+    background: #fff;
+    color: #000;
+    border-radius: 0;
+}
+
+.data-list-input select option:hover {
+    background: #bedfff;
+}
+
+.data-list-input select option:focus {
+    background: #49a4ff;
+}
+
+.data-list-input button {
+    position: absolute;
+    padding: 0;
+    height:0;
+    top: 0.66em;
+    right: 1em;
+    color: #000;
+    background-color: transparent;
+    border: 0;
+}
+
+.data-list-input input {
+    width: 100%;
+}
+</style>
 </head>
 
 [% BLOCK comments %]
 <pre id="comment-[% block.id %]">
 [%- FOR comment IN block.comments -%]
-[%- comment %]
+[%- comment.collapse %]
 [% END -%]
 </pre>
 [%- END %]
 
 [%- BLOCK environments -%]
 [%- FOR env IN environment -%]
-[%- env.data %]
+[%- env.data.collapse %]
 [% END -%]
+[%- END -%]
+
+[%- BLOCK bins -%]
+[%- UNLESS bins.size < 1 -%]
+<select class="form-control" size="0">
+[%- FOR bin IN bins -%]
+<option value="[%- bin.collapse %]">[%- bin.collapse %]</option>
+[% END -%]
+</select>
+[% END %]
 [%- END -%]
 
 <body id="crontab_plugin_admin" class="plugin">
@@ -130,9 +176,7 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label for="env_vars">Environment Variables:</label>
-                    <textarea class="form-control" rows="5" id="env-content" placeholder="# Please set PATH, MAILTO, HOME... here">
-                    [%- PROCESS environments environment -%]
-                    </textarea>
+                    <textarea class="form-control" rows="5" id="env-content" placeholder="# Please set PATH, MAILTO, HOME... here">[%- PROCESS environments environment -%]</textarea>
                 </div>
             </div>
             <div class="modal-footer">
@@ -161,11 +205,34 @@
                   <textarea class="form-control" id="job-comment"></textarea>
   
                   <label for="job-schedule">Schedule</label>
-                  <input type="text" class="form-control" id="job-schedule" placeholder="* * * * *"></input>
+                  <div class="data-list-input">
+                    <input type="text" class="form-control" id="job-schedule" name="job-schedule" />
+                    <button class="btn" disabled="disabled"><i class="fa-solid fa-chevron-down"></i></button>
+                    <select class="form-control" size="1">
+                      <option value="*/30 * * * *">Every 30 minutes</option>
+                      <option value="0 */2 * * *">Every two hours</option>
+                      <option value="0 21 * * *">Every day 21:00</option>
+                      <option value="*/30 2,22 * * *">Every day 02:30,22:30</option>
+                      <option value="0 0 * * 1,2,3,4,5">Monday to Friday 00:00</option>
+                      <option value="0 */1 * * 1,2,3,4,5">Monday to Friday hourly</option>
+                      <option value="*/15 7,8,9,10,11,12,13,14,15,16,17,18 * * 1,2,3,4,5">Monday to Friday 07:00 to 18:45 every 15 minutes</option>
+                      <option value="0 1 * * 0">Sunday 01:00</option>
+                      <option value="0 0 1 * *">First day of the month 00:00</option>
+                      <option value="0 15 1 1 *">First day of the year 15:00</option>
+                    </select>
+                  </div>
                   <div class="hint"><a href="https://crontab-generator.com" target="_blank">Need help?</a></div>
      
                   <label for="job-command">Command</label>
-                  <input type="text" class="form-control" id="job-command"></input>
+                  [%- UNLESS bins.size < 1 -%]
+                  <div class="data-list-input">
+                    <input type="text" class="form-control" id="job-command" name="job-command" />
+                    <button class="btn" disabled="disabled"><i class="fa-solid fa-chevron-down"></i></button>
+                    [%- PROCESS bins bin -%]
+                  </div>
+                  [% ELSE %]
+                  <input type="text" class="form-control" id="job-command" name="job-command" />
+                  [% END %]
                 </div>
   
                 <div class="form-group">
@@ -216,8 +283,70 @@
     </script>
     <script>
         $(document).ready(function() {
+            $('.data-list-input input').each(function() {
+                let input = $(this);
+                let select = $(this).siblings('.data-list-input select:first');
+
+                function doSelectSwitch(display = select.css('display')) {
+                    let length = select.get(0).length;
+                    if(length > 10) length = 10;
+                    select.attr('size', length);
+
+                    if(display == 'none' || display == 'toBlock') {
+                        select.css('display', 'block');
+                    } else if(display == 'block' || display == 'toNone') {
+                        select.css('display', 'none');
+                    }
+                }
+
+                input.on('click', function() {
+                    doSelectSwitch();
+                })
+                .on('keyup', function () {
+                    let key = event.which;
+
+                    if(key == 9) { // TAB
+                        doSelectSwitch('toBlock');
+                    }
+                })
+                .on('keydown', function() {
+                    let key = event.which;
+
+                    if(key == 13) { // ENTER
+                        doSelectSwitch();
+                    }
+                });
+            });
+
+            $('.data-list-input select').each(function() {
+                let input  = $(this).siblings('.data-list-input input:first');
+                let select = $(this);
+
+                function doInputSet() {
+                    input.val(select.find('option:selected').val());
+                    input.trigger('focus');
+                    select.css('display', 'none');
+                }
+
+                select.on('keydown', function(event) {
+                    let key = event.which;
+
+                    if(key == 13) { // ENTER
+                        doInputSet();
+                    }
+                })
+                .children('option').each(function() {
+                    let option = $(this);
+
+                    option.on('click', function() {
+                        doInputSet();
+                    });
+                });
+            });
+
             $("#jobModal").on("shown.bs.modal", function(e){
                 let button = $(e.relatedTarget);
+                $('#jobModal .data-list-input select:first').css('display', 'none');
 
                 // Get block id if this is an edit
                 let block_id = button.data('block');
@@ -229,11 +358,11 @@
                     $('#block_id').val('');
                 }
 
-                let comment = $("#comment-"+block_id).text();
+                let comment = $("#comment-"+block_id).text().trim();
                 $('#job-comment').val(comment);
-                let command = $('#command-'+block_id).text();
+                let command = $('#command-'+block_id).text().trim();
                 $('#job-command').val(command);
-                let schedule = $('#schedule-'+block_id).text();
+                let schedule = $('#schedule-'+block_id).text().trim();
                 $('#job-schedule').val(schedule);
             });
 
@@ -267,7 +396,7 @@
                     });
 
                     posting.done(function(data) {
-                        $('#message').replaceWith('<div id="message" class="alert alert-success">Job added: '+data+'</div>');
+                        $('#message').replaceWith('<div id="message" class="alert alert-success">Job added</div>');
                         setTimeout(function(){
                             window.location.reload();
                         }, 800);
@@ -327,8 +456,6 @@
                     'environments': environments
                 };
 
-                console.log
-
                 let putting = $.ajax({
                     method: 'PUT',
                     url: url,
@@ -338,7 +465,7 @@
                 });
 
                 putting.done(function(data) {
-                    $('#message').replaceWith('<div id="message" class="alert alert-success">Environment updated: '+data+'</div>');
+                    $('#message').replaceWith('<div id="message" class="alert alert-success">Environment updated</div>');
                     setTimeout(function(){
                         window.location.reload();
                     }, 800);
