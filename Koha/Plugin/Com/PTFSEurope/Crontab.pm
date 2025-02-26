@@ -48,9 +48,7 @@ sub admin {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
-    if ( my $koha_plugin_crontab_user_allowlist =
-        C4::Context->config('koha_plugin_crontab_user_allowlist') )
-    {
+    if ( my $koha_plugin_crontab_user_allowlist = C4::Context->config('koha_plugin_crontab_user_allowlist') ) {
         my @borrowernumbers = split( ',', $koha_plugin_crontab_user_allowlist );
         my $bn              = C4::Context->userenv->{number};
         unless ( grep( /^$bn$/, @borrowernumbers ) ) {
@@ -62,9 +60,8 @@ sub admin {
 
     my $template = $self->get_template( { file => 'crontab.tt' } );
 
-    my $ct = Config::Crontab->new();
-    my $cron_file =
-      C4::Context->config('koha_plugin_crontab_cronfile') || undef;
+    my $ct        = Config::Crontab->new();
+    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
     $ct->file($cron_file) if $cron_file;
     $ct->mode('block');
     $ct->read or do {
@@ -93,27 +90,28 @@ sub admin {
         my $id;
         if ( $id_line->data =~ /# BLOCKID: (\d+)/ ) {
             $id = $1;
-        }
-        else {
-            $template->param(
-                error => "Found block with missing ID: " . $id_line->data );
+        } else {
+            $template->param( error => "Found block with missing ID: " . $id_line->data );
             $self->output_html( $template->output() );
             return;
         }
 
         # We want a list of commands, find cronjobs directory
-        my @cronjob_paths = $block->select( -type => 'env', -name => 'KOHA_CRON_PATH');
-        if (defined $cronjob_paths[0]) {
+        my @cronjob_paths = $block->select( -type => 'env', -name => 'KOHA_CRON_PATH' );
+        if ( defined $cronjob_paths[0] ) {
             my $cronjob_path = $cronjob_paths[0]->value;
-            if(-d $cronjob_path) {
-                find( sub {
-                    my $abs_filename = $File::Find::name;
-                    $abs_filename =~ m/($cronjob_path)(.*)/;
-                    my $rel_filename = "\$KOHA_CRON_PATH" . $2;
+            if ( -d $cronjob_path ) {
+                find(
+                    sub {
+                        my $abs_filename = $File::Find::name;
+                        $abs_filename =~ m/($cronjob_path)(.*)/;
+                        my $rel_filename = "\$KOHA_CRON_PATH" . $2;
 
-                    push @bins, $rel_filename
-                      if ( -f $abs_filename && ( $abs_filename =~ /\.pl\z/ || $abs_filename =~ /\.sh\z/ ) );
-                }, $cronjob_path );
+                        push @bins, $rel_filename
+                            if ( -f $abs_filename && ( $abs_filename =~ /\.pl\z/ || $abs_filename =~ /\.sh\z/ ) );
+                    },
+                    $cronjob_path
+                );
             }
         }
 
@@ -132,12 +130,12 @@ sub admin {
         }
 
         push @{$blocks},
-          {
+            {
             id          => $id,
             comments    => \@comments_stripped,
             environment => \@env,
             events      => \@events
-          };
+            };
     }
     $template->param(
         environment => \@environment,
@@ -176,12 +174,10 @@ sub configure {
         my $template = $self->get_template( { file => 'configure.tt' } );
 
         ## Grab the values we already have for our settings, if any exist
-        $template->param(
-            enable_logging => $self->retrieve_data('enable_logging'), );
+        $template->param( enable_logging => $self->retrieve_data('enable_logging'), );
 
         $self->output_html( $template->output() );
-    }
-    else {
+    } else {
         $self->store_data(
             {
                 enable_logging => $cgi->param('enable_logging'),
@@ -196,9 +192,8 @@ sub install() {
 
     my $existing = 1;
 
-    my $ct = Config::Crontab->new();
-    my $cron_file =
-      C4::Context->config('koha_plugin_crontab_cronfile') || undef;
+    my $ct        = Config::Crontab->new();
+    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
     $ct->file($cron_file) if $cron_file;
     $ct->mode('block');
     $ct->read or do {
@@ -225,7 +220,7 @@ sub install() {
                     -type    => 'comment',
                     -data_re => 'Koha Crontab manager'
                 )
-              )
+                )
             {
                 return 1;    # Already installed
             }
@@ -235,19 +230,10 @@ sub install() {
                 my @events = $block->select( -type => 'event' );
                 if ( @env && !@events ) {
                     $global_env = 1;
-                    $block->first(
-                        Config::Crontab::Comment->new(
-                            -data => "# BLOCKID: " . $block_id
-                        )
-                    );
+                    $block->first( Config::Crontab::Comment->new( -data => "# BLOCKID: " . $block_id ) );
                 }
-            }
-            else {
-                $block->first(
-                    Config::Crontab::Comment->new(
-                        -data => "# BLOCKID: " . ++$block_id
-                    )
-                );
+            } else {
+                $block->first( Config::Crontab::Comment->new( -data => "# BLOCKID: " . ++$block_id ) );
             }
         }
     }
@@ -255,11 +241,7 @@ sub install() {
     # Set first block to state we're maintained by the plugin
     my $header_block = Config::Crontab::Block->new();
     $header_block->first(
-        Config::Crontab::Comment->new(
-            -data =>
-"# This crontab file is managed by the Koha Crontab manager plugin"
-        )
-    );
+        Config::Crontab::Comment->new( -data => "# This crontab file is managed by the Koha Crontab manager plugin" ) );
     $ct->first($header_block);
 
     # Set some useful global environment if it doesn't already exist
@@ -268,30 +250,30 @@ sub install() {
         my $env_lines;
 
         push @{$env_lines},
-          Config::Crontab::Comment->new( -data => '# BLOCKID: 0' );
+            Config::Crontab::Comment->new( -data => '# BLOCKID: 0' );
 
         push @{$env_lines},
-          Config::Crontab::Env->new(
+            Config::Crontab::Env->new(
             -name   => 'PERL5LIB',
             -value  => '/usr/share/koha/lib',
             -active => 1
-          );
+            );
         push @{$env_lines},
-          Config::Crontab::Env->new(
+            Config::Crontab::Env->new(
             -name   => 'KOHA_CRON_PATH',
             -value  => '/usr/share/koha/bin/cronjobs',
             -active => 1
-          );
+            );
 
         my $instance = C4::Context->config('database');
         $instance =~ s/koha_//;
 
         push @{$env_lines},
-          Config::Crontab::Env->new(
+            Config::Crontab::Env->new(
             -name   => 'KOHA_CONF',
             -value  => "/etc/koha/sites/$instance/koha-conf.xml",
             -active => 1
-          );
+            );
 
         $env_block->lines($env_lines);
 

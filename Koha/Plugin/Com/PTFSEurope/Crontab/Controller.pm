@@ -29,10 +29,10 @@ sub add {
 
     if ( my $r = check_user_allowlist($c) ) { return $r; }
 
-    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+    my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
-    my $ct = Config::Crontab->new();
+    my $ct        = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
     $ct->file($cron_file) if $cron_file;
     $ct->mode('block');
@@ -44,7 +44,7 @@ sub add {
     };
 
     my $last_block = 0;
-    my @id_lines = $ct->select( -type => 'comment', -data_re => "# BLOCKID: " );
+    my @id_lines   = $ct->select( -type => 'comment', -data_re => "# BLOCKID: " );
     if (@id_lines) {
         $id_lines[-1]->data() =~ /.*(\d+)/;
         $last_block = $1;
@@ -57,7 +57,7 @@ sub add {
     my $lines;
     my $newblock = Config::Crontab::Block->new();
     push @{$lines},
-      Config::Crontab::Comment->new( -data => "# BLOCKID: $next_block" );
+        Config::Crontab::Comment->new( -data => "# BLOCKID: $next_block" );
 
     # Comments
     for my $comment ( @{ $body->{comments} } ) {
@@ -67,10 +67,10 @@ sub add {
     # Events
     for my $event ( @{ $body->{events} } ) {
         push @{$lines},
-          Config::Crontab::Event->new(
+            Config::Crontab::Event->new(
             -datetime => $event->{schedule},
             -command  => $event->{command}
-          );
+            );
     }
 
     ## TODO: Add Environment handling as needed?
@@ -83,12 +83,12 @@ sub add {
 
     # Write to crontab
     $ct->write
-      or do {
+        or do {
         return $c->render(
             status  => 500,
             openapi => { error => "Could not write to crontab: " . $ct->error }
         );
-      };
+        };
 
     logaction( 'SYSTEMPREFERENCE', 'ADD', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
 
@@ -103,10 +103,10 @@ sub update {
 
     if ( my $r = check_user_allowlist($c) ) { return $r; }
 
-    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+    my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
-    my $ct = Config::Crontab->new();
+    my $ct        = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
     $ct->file($cron_file) if $cron_file;
     $ct->mode('block');
@@ -119,8 +119,7 @@ sub update {
 
     # Find block
     my $block_id = $c->validation->param('block_id');
-    my @id_lines =
-      $ct->select( -type => 'comment', -data => "# BLOCKID: $block_id" );
+    my @id_lines = $ct->select( -type => 'comment', -data => "# BLOCKID: $block_id" );
     unless ( scalar @id_lines == 1 ) {
         return $c->render(
             status  => 500,
@@ -135,7 +134,7 @@ sub update {
     my $lines;
     my $newblock = Config::Crontab::Block->new();
     push @{$lines},
-      Config::Crontab::Comment->new( -data => "# BLOCKID: $block_id" );
+        Config::Crontab::Comment->new( -data => "# BLOCKID: $block_id" );
 
     # Comments
     for my $comment ( @{ $body->{comments} } ) {
@@ -145,16 +144,16 @@ sub update {
     # Environment
     for my $environment ( @{ $body->{environments} } ) {
         push @{$lines},
-          Config::Crontab::Env->new( -data => $environment );
+            Config::Crontab::Env->new( -data => $environment );
     }
 
     # Events
     for my $event ( @{ $body->{events} } ) {
         push @{$lines},
-          Config::Crontab::Event->new(
+            Config::Crontab::Event->new(
             -datetime => $event->{schedule},
             -command  => $event->{command}
-          );
+            );
     }
 
     # Set block lines
@@ -165,12 +164,12 @@ sub update {
 
     # Write to crontab
     $ct->write
-      or do {
+        or do {
         return $c->render(
             status  => 500,
             openapi => { error => "Could not write to crontab: " . $ct->error }
         );
-      };
+        };
 
     logaction( 'SYSTEMPREFERENCE', 'MODIFY', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
 
@@ -185,10 +184,10 @@ sub delete {
 
     if ( my $r = check_user_allowlist($c) ) { return $r; }
 
-    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+    my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
-    my $ct = Config::Crontab->new();
+    my $ct        = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
     $ct->file($cron_file) if $cron_file;
     $ct->mode('block');
@@ -201,8 +200,7 @@ sub delete {
 
     # Find block
     my $block_id = $c->validation->param('block_id');
-    my @id_lines =
-      $ct->select( -type => 'comment', -data => "# BLOCKID: $block_id" );
+    my @id_lines = $ct->select( -type => 'comment', -data => "# BLOCKID: $block_id" );
     unless ( scalar @id_lines == 1 ) {
         return $c->render(
             status  => 500,
@@ -220,12 +218,12 @@ sub delete {
 
     # Write to crontab
     $ct->write
-      or do {
+        or do {
         return $c->render(
             status  => 500,
             openapi => { error => "Could not write to crontab: " . $ct->error }
         );
-      };
+        };
 
     logaction( 'SYSTEMPREFERENCE', 'DELETE', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
 
@@ -240,10 +238,10 @@ sub update_environment {
 
     if ( my $r = check_user_allowlist($c) ) { return $r; }
 
-    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+    my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
-    my $ct = Config::Crontab->new();
+    my $ct        = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
     $ct->file($cron_file) if $cron_file;
     $ct->mode('block');
@@ -256,13 +254,11 @@ sub update_environment {
 
     # Environment is special BLOCKID: 0
     my $block_id = 0;
-    my @id_lines =
-      $ct->select( -type => 'comment', -data => "# BLOCKID: $block_id" );
+    my @id_lines = $ct->select( -type => 'comment', -data => "# BLOCKID: $block_id" );
     unless ( scalar @id_lines == 1 ) {
         return $c->render(
             status  => 500,
-            openapi =>
-              { error => "Could not uniquely identify environment block." }
+            openapi => { error => "Could not uniquely identify environment block." }
         );
     }
 
@@ -273,7 +269,7 @@ sub update_environment {
     my $lines;
     my $newblock = Config::Crontab::Block->new();
     push @{$lines},
-      Config::Crontab::Comment->new( -data => "# BLOCKID: $block_id" );
+        Config::Crontab::Comment->new( -data => "# BLOCKID: $block_id" );
 
     # Comments
     for my $comment ( @{ $body->{comments} } ) {
@@ -283,7 +279,7 @@ sub update_environment {
     # Environment
     for my $environment ( @{ $body->{environments} } ) {
         push @{$lines},
-          Config::Crontab::Env->new( -data => "$environment" );
+            Config::Crontab::Env->new( -data => "$environment" );
     }
 
     # Set block lines
@@ -294,12 +290,12 @@ sub update_environment {
 
     # Write to crontab
     $ct->write
-      or do {
+        or do {
         return $c->render(
             status  => 500,
             openapi => { error => "Could not write to crontab: " . $ct->error }
         );
-      };
+        };
 
     logaction( 'SYSTEMPREFERENCE', 'MODIFY', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
 
@@ -316,7 +312,7 @@ sub backup {
 
     my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new;
 
-    my $ct = Config::Crontab->new();
+    my $ct        = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
     $ct->file($cron_file) if $cron_file;
     $ct->mode('block');
@@ -345,11 +341,11 @@ sub backup {
 }
 
 sub check_user_allowlist {
-    my ( $c ) = @_;
+    my ($c) = @_;
 
     if ( my $koha_plugin_crontab_user_allowlist = C4::Context->config('koha_plugin_crontab_user_allowlist') ) {
-        my @borrowernumbers = split(',', $koha_plugin_crontab_user_allowlist );
-        my $bn = C4::Context->userenv->{number};
+        my @borrowernumbers = split( ',', $koha_plugin_crontab_user_allowlist );
+        my $bn              = C4::Context->userenv->{number};
         if ( grep( /^$bn$/, @borrowernumbers ) ) {
             return undef;
         } else {
