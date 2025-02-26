@@ -8,6 +8,7 @@ use base qw(Koha::Plugins::Base);
 use POSIX qw(strftime);
 use Module::Metadata;
 use Config::Crontab;
+use File::Find;
 use YAML::XS;
 
 use C4::Context;
@@ -74,6 +75,7 @@ sub admin {
 
     my $blocks = [];
     my @environment;
+    my @bins;
     for my $block ( $ct->blocks ) {
 
         # Get block parts
@@ -97,6 +99,22 @@ sub admin {
                 error => "Found block with missing ID: " . $id_line->data );
             $self->output_html( $template->output() );
             return;
+        }
+
+        # We want a list of commands, find cronjobs directory
+        my @cronjob_paths = $block->select( -type => 'env', -name => 'KOHA_CRON_PATH');
+        if (defined $cronjob_paths[0]) {
+            my $cronjob_path = $cronjob_paths[0]->value;
+            if(-d $cronjob_path) {
+                find( sub {
+                    my $abs_filename = $File::Find::name;
+                    $abs_filename =~ m/($cronjob_path)(.*)/;
+                    my $rel_filename = "\$KOHA_CRON_PATH" . $2;
+
+                    push @bins, $rel_filename
+                      if ( -f $abs_filename && ( $abs_filename =~ /\.pl\z/ || $abs_filename =~ /\.sh\z/ ) );
+                }, $cronjob_path );
+            }
         }
 
         # Global environment block
@@ -123,6 +141,7 @@ sub admin {
     }
     $template->param(
         environment => \@environment,
+        bins        => \@bins,
         blocks      => $blocks
     );
     $self->output_html( $template->output() );
