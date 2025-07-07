@@ -6,66 +6,34 @@
 <title>Crontab: Administer &rsaquo; Plugins &rsaquo; Administration &rsaquo; Koha</title>
 [% INCLUDE 'doc-head-close.inc' %]
 <style>
-.data-list-input {
-    position: relative;
+.job-enabled {
+    color: #28a745;
 }
-
-.data-list-input select,
-.data-list-input select:focus {
-    display: none;
-    background: #fff;
-    color: #000;
-    border-radius: 0;
+.job-disabled {
+    color: #dc3545;
 }
-
-.data-list-input select option:hover {
-    background: #bedfff;
+.schedule-preview {
+    font-family: 'Courier New', monospace;
+    background-color: #f8f9fa;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
 }
-
-.data-list-input select option:focus {
-    background: #49a4ff;
+.env-var {
+    display: inline-block;
+    background-color: #e9ecef;
+    padding: 0.125rem 0.375rem;
+    margin: 0.125rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
 }
-
-.data-list-input button {
-    position: absolute;
-    padding: 0;
-    height:0;
-    top: 0.66em;
-    right: 1em;
-    color: #000;
-    background-color: transparent;
-    border: 0;
-}
-
-.data-list-input input {
-    width: 100%;
+.btn-xs {
+    padding: 0.125rem 0.375rem;
+    font-size: 0.75rem;
+    border-radius: 0.25rem;
 }
 </style>
 </head>
-
-[% BLOCK comments %]
-<pre id="comment-[% block.id %]">
-[%- FOR comment IN block.comments -%]
-[%- comment.collapse %]
-[% END -%]
-</pre>
-[%- END %]
-
-[%- BLOCK environments -%]
-[%- FOR env IN environment -%]
-[%- env.data.collapse %]
-[% END -%]
-[%- END -%]
-
-[%- BLOCK bins -%]
-[%- UNLESS bins.size < 1 -%]
-<select class="form-control" size="0">
-[%- FOR bin IN bins -%]
-<option value="[%- bin.collapse %]">[%- bin.collapse %]</option>
-[% END -%]
-</select>
-[% END %]
-[%- END -%]
 
 <body id="crontab_plugin_admin" class="plugin">
     [% WRAPPER 'header.inc' %]
@@ -91,68 +59,111 @@
             <div class="col-md-10 order-md-2 order-sm-1">
                 <main>
                     <div id="message"></div>
-                    [% IF error %]
-                      There was an error: [% error | html %]
-                    [% END %]
+
                     <h1>Crontab: Administer</h1>
-                    <div class="page-section">
-                        <pre>[%- PROCESS environments environment -%]</pre>
-                    </div>
 
                     <div id="toolbar" class="btn-toolbar">
-                        <button type="button" data-bs-toggle="modal" data-bs-target="#jobModal" class="btn btn-primary" id="newjob"><i class="fa fa-plus"></i> New </button>
-                        <button type="button" data-bs-toggle="modal" data-bs-target="#environmentModal" class="btn btn-default" id="env"><i class="fa fa-hashtag"></i> Edit environment</button>
-                        <a class="btn btn-default" id="backup_now"><i class="fa fa-archive"></i> Backup</a>
-                        <a class="btn btn-default" id="reload_now" href="/cgi-bin/koha/plugins/run.pl?class=Koha%3A%3APlugin%3A%3ACom%3A%3APTFSEurope%3A%3ACrontab&method=admin"><i class="fa fa-repeat"></i> Get from crontab</a>
+                        <button type="button" data-bs-toggle="modal" data-bs-target="#jobModal" class="btn btn-primary" id="newjob">
+                            <i class="fa fa-plus"></i> New Job
+                        </button>
+                        <button type="button" id="backup_now" class="btn btn-default">
+                            <i class="fa fa-archive"></i> Backup
+                        </button>
+                        <button type="button" id="refresh_jobs" class="btn btn-default">
+                            <i class="fa fa-refresh"></i> Refresh
+                        </button>
                     </div>
 
+                    <!-- Global Environment Variables Section -->
                     <div class="page-section">
-                        <table class="table table-striped" id="main_table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Comment</th>
-                                    <th>Time</th>
-                                    <th>Job</th>
-                                    <th>Last Modified</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            [% FOR block IN blocks %]
-                                <tr>
-                                    <td>
-                                        [% block.id | html %]
-                                    </td>
-                                    <td>
-                                        [% PROCESS comments block %]
-                                    <td id="schedule-[% block.id %]">
-                                        [%- block.events.0.datetime | html -%]
-                                    </td>
-                                    <td id="command-[% block.id %]">
-                                        [%- block.events.0.command | html -%]
-                                    </td>
-                                    <td></td>
-                                    <td>
-                                        <!--
-                                        <a class="btn btn-danger" data-toggle="tooltip" data-placement="left" title="stderr"><i class="fa fa-list-alt" aria-hidden="true"></i></a>
-                                        <a class="btn btn-primary" data-toggle="tooltip" data-placement="left" title="stdout"><i class="fa fa-list-alt" aria-hidden="true"></i></a>
-                                        <a class="btn btn-default"><i class="fa fa-play" aria-hidden="true"></i> Run now</a>
-                                        -->
-                                        <button type="button" data-bs-toggle="modal" data-bs-target="#jobModal" data-block="[% block.id | html %]" class="btn btn-primary" id="editjob"><i class="fa fa-edit"></i> Edit</button>
-                                        <!--
-                                        [% IF block.events.0.active %]
-                                        <a class="btn btn-default disable_job"><i class="fa fa-stop" aria-hidden="true"></i> Disable</a>
-                                        [% ELSE %]
-                                        <a class="btn btn-default enable_job"><i class="fa fa-play" aria-hidden="true"></i> Enable</a>
-                                        [% END %]
-                                        -->
-                                        <button type="button" data-bs-toggle="modal" data-bs-target="#deleteModal" data-block="[% block.id | html %]" class="btn btn-danger"><i class="fa fa-trash" aria-hidden="true"></i> Remove</button>
-                                    </td>
-                                </tr>
-                            [% END %]
-                            </tbody>
-                        </table>
+                        <div class="card">
+                            <div class="card-header" id="env-heading">
+                                <h5 class="mb-0">
+                                    <button class="btn btn-link collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#env-collapse" aria-expanded="false" aria-controls="env-collapse">
+                                        <i class="fa fa-list"></i> Global Environment Variables
+                                        <small class="text-muted">(click to expand)</small>
+                                    </button>
+                                </h5>
+                            </div>
+                            <div id="env-collapse" class="collapse" aria-labelledby="env-heading">
+                                <div class="card-body">
+                                    <p class="text-muted">Global environment variables defined at the crontab level. These are available to all cron jobs.</p>
+                                    <table class="table table-sm table-striped" id="env_vars_table">
+                                        <thead>
+                                            <tr>
+                                                <th>Variable</th>
+                                                <th>Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="env_vars_tbody">
+                                            <!-- Environment variables will be loaded dynamically -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabs for different views -->
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="managed-tab" data-bs-toggle="tab" data-bs-target="#managed-jobs" type="button" role="tab">
+                                <i class="fa fa-cog"></i> Managed Jobs
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system-jobs" type="button" role="tab">
+                                <i class="fa fa-server"></i> System Jobs
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <!-- Managed Jobs Tab -->
+                        <div class="tab-pane fade show active" id="managed-jobs" role="tabpanel">
+                            <div class="page-section">
+                                <p class="text-muted">Jobs managed by this plugin. You can create, edit, enable/disable, and delete these jobs.</p>
+                                <table class="table table-striped" id="jobs_table">
+                                    <thead>
+                                        <tr>
+                                            <th>Status</th>
+                                            <th>Schedule</th>
+                                            <th>Command</th>
+                                            <th>Description</th>
+                                            <th>Environment</th>
+                                            <th>Updated</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="jobs_tbody">
+                                        <!-- Jobs will be loaded dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- System Jobs Tab -->
+                        <div class="tab-pane fade" id="system-jobs" role="tabpanel">
+                            <div class="page-section">
+                                <div class="alert alert-info">
+                                    <i class="fa fa-info-circle"></i> These jobs are managed outside this plugin (e.g., by Ansible, manually, or other tools).
+                                    They are displayed as <strong>read-only</strong> for your reference to avoid scheduling conflicts.
+                                </div>
+                                <table class="table table-striped" id="system_jobs_table">
+                                    <thead>
+                                        <tr>
+                                            <th>Status</th>
+                                            <th>Schedule</th>
+                                            <th>Command</th>
+                                            <th>Comments</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="system_jobs_tbody">
+                                        <!-- System jobs will be loaded dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </main>
             </div> <!-- /.col-md-10.order-md-2 -->
@@ -164,110 +175,113 @@
         </div>
     </div>
 
-    <!-- Add/Edit Environment Modal -->
-    <div class="modal fade" id="environmentModal" tabindex="-1" role="dialog" aria-labelledby="environment-modal-label">
-      <form id="environmentForm">
-        <div class="modal-dialog" role="document">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h1 class="modal-title" id="environment-modal-label"></h1>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="env_vars">Environment Variables:</label>
-                    <textarea class="form-control" rows="5" id="env-content" placeholder="# Please set PATH, MAILTO, HOME... here">[%- PROCESS environments environment -%]</textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-              <input type="hidden" name="block_id" id="block_id">
-              <button id="environment-modal-btn-submit" class="btn btn-default approve" type="submit"><i class="fa fa-check"></i> Save</button>
-              <button class="btn btn-default deny cancel" type="button" data-bs-dismiss="modal"><i class="fa fa-times"></i> Cancel</button>
-            </div>
-          </div>
-        </div>
-      </form>
-    </div>
-
     <!-- Add/Edit Job Modal -->
     <div class="modal fade" id="jobModal" tabindex="-1" role="dialog" aria-labelledby="job-modal-label">
       <form id="jobForm">
-        <div class="modal-dialog" role="document">
+            <div class="modal-dialog modal-lg" role="document">
           <div class="modal-content">
             <div class="modal-header">
-              <h1 class="modal-title" id="job-modal-label"></h1>
+                        <h1 class="modal-title" id="job-modal-label">New Job</h1>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-      
-                <div class="form-group">
-                  <label for="job-comment">Comment</label>
-                  <textarea class="form-control" id="job-comment"></textarea>
-  
-                  <label for="job-schedule">Schedule</label>
-                  <div class="data-list-input">
-                    <input type="text" class="form-control" id="job-schedule" name="job-schedule" />
-                    <button class="btn" disabled="disabled"><i class="fa-solid fa-chevron-down"></i></button>
-                    <select class="form-control" size="1">
-                      <option value="*/30 * * * *">Every 30 minutes</option>
-                      <option value="0 */2 * * *">Every two hours</option>
-                      <option value="0 21 * * *">Every day 21:00</option>
-                      <option value="*/30 2,22 * * *">Every day 02:30,22:30</option>
-                      <option value="0 0 * * 1,2,3,4,5">Monday to Friday 00:00</option>
-                      <option value="0 */1 * * 1,2,3,4,5">Monday to Friday hourly</option>
-                      <option value="*/15 7,8,9,10,11,12,13,14,15,16,17,18 * * 1,2,3,4,5">Monday to Friday 07:00 to 18:45 every 15 minutes</option>
-                      <option value="0 1 * * 0">Sunday 01:00</option>
-                      <option value="0 0 1 * *">First day of the month 00:00</option>
-                      <option value="0 15 1 1 *">First day of the year 15:00</option>
-                    </select>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="job-name" class="form-label">Name *</label>
+                                    <input type="text" class="form-control" id="job-name" required placeholder="e.g., Daily Database Backup">
+                                </div>
+                            </div>
+        
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="job-enabled" class="form-label">Status</label>
+                                    <select class="form-control" id="job-enabled">
+                                        <option value="1">Enabled</option>
+                                        <option value="0">Disabled</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="job-description" class="form-label">Description</label>
+                            <textarea class="form-control" id="job-description" rows="2" placeholder="Description of what this job does"></textarea>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="job-schedule" class="form-label">Schedule *</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="job-schedule" required placeholder="0 2 * * *">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Presets
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item schedule-preset" data-schedule="*/5 * * * *">Every 5 minutes</a></li>
+                                    <li><a class="dropdown-item schedule-preset" data-schedule="*/30 * * * *">Every 30 minutes</a></li>
+                                    <li><a class="dropdown-item schedule-preset" data-schedule="0 * * * *">Every hour</a></li>
+                                    <li><a class="dropdown-item schedule-preset" data-schedule="0 */2 * * *">Every 2 hours</a></li>
+                                    <li><a class="dropdown-item schedule-preset" data-schedule="0 2 * * *">Daily at 2:00 AM</a></li>
+                                    <li><a class="dropdown-item schedule-preset" data-schedule="0 0 * * 0">Weekly (Sunday)</a></li>
+                                    <li><a class="dropdown-item schedule-preset" data-schedule="0 0 1 * *">Monthly (1st day)</a></li>
+                                </ul>
                   </div>
-                  <div class="hint"><a href="https://crontab-generator.com" target="_blank">Need help?</a></div>
-     
-                  <label for="job-command">Command</label>
-                  [%- UNLESS bins.size < 1 -%]
-                  <div class="data-list-input">
-                    <input type="text" class="form-control" id="job-command" name="job-command" />
-                    <button class="btn" disabled="disabled"><i class="fa-solid fa-chevron-down"></i></button>
-                    [%- PROCESS bins bin -%]
-                  </div>
-                  [% ELSE %]
-                  <input type="text" class="form-control" id="job-command" name="job-command" />
-                  [% END %]
+                            <small class="form-text text-muted">
+                                <a href="https://crontab.guru" target="_blank">Need help with cron syntax?</a>
+                            </small>
                 </div>
-  
-                <div class="form-group">
-                  <h2>Output</h2>
-                  <label for="job-output">Standard out</label>
-                  <label for="job-errors">Standard error</label> 
+
+                        <div class="form-group mb-3">
+                            <label for="job-command" class="form-label">Command *</label>
+                            <input type="text" class="form-control" id="job-command" required placeholder="/usr/local/bin/my-script.sh">
+                            <small class="form-text text-muted">Full path to the command or script to execute</small>
                 </div>
-                
+
+                        <div class="form-group mb-3">
+                            <label class="form-label">Environment Variables</label>
+                            <div id="environment-container">
+                                <!-- Environment variables will be added here -->
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="add-env-var">
+                                <i class="fa fa-plus"></i> Add Variable
+                            </button>
+                        </div>
             </div>
             <div class="modal-footer">
-              <input type="hidden" name="block_id" id="block_id">
-              <button id="job-modal-btn-submit" class="btn btn-default approve" type="submit"><i class="fa fa-check"></i> Save</button>
-              <button class="btn btn-default deny cancel" type="button" data-bs-dismiss="modal"><i class="fa fa-times"></i> Cancel</button>
+                        <input type="hidden" id="job-id">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa fa-check"></i> Save Job
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fa fa-times"></i> Cancel
+                        </button>
             </div>
           </div>
         </div>
       </form>
     </div>
 
-    <!-- Remove Job Modal -->
+    <!-- Delete Job Modal -->
     <div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="delete-modal-label">
       <form id="deleteForm">
         <div class="modal-dialog" role="document">
           <div class="modal-content">
             <div class="modal-header">
-              <h1 class="modal-title" id="delete-modal-label">Delete job</h1>
+                        <h1 class="modal-title" id="delete-modal-label">Delete Job</h1>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <p>Are you sure you wish to remove this job?</p>
+                        <p>Are you sure you want to delete the job "<span id="delete-job-name"></span>"?</p>
+                        <p class="text-muted">This action cannot be undone.</p>
             </div>
             <div class="modal-footer">
-              <input type="hidden" name="block_id" id="delete_id">
-              <button id="delete-modal-btn-submit" type="submit" class="btn btn-default approve">Remove</button>
-              <button class="btn btn-default deny cancel" type="button" data-bs-dismiss="modal"><i class="fa fa-times"></i> Cancel</button>
+                        <input type="hidden" id="delete-job-id">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fa fa-trash"></i> Delete Job
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fa fa-times"></i> Cancel
+                        </button>
             </div>
           </div>
         </div>
@@ -277,257 +291,446 @@
 [% MACRO jsinclude BLOCK %]
     [% INCLUDE 'datatables.inc' %]
     <script>
-        $( document ).ready( function() {
+        $(document).ready(function() {
             $('#navmenulist a[href$="/cgi-bin/koha/plugins/plugins-home.pl"]').addClass("current");
-        } );
+        });
     </script>
     <script>
+        let jobsTable;
+        let systemJobsTable;
+
         $(document).ready(function() {
-            $('.data-list-input input').each(function() {
-                let input = $(this);
-                let select = $(this).siblings('.data-list-input select:first');
-
-                function doSelectSwitch(display = select.css('display')) {
-                    let length = select.get(0).length;
-                    if(length > 10) length = 10;
-                    select.attr('size', length);
-
-                    if(display == 'none' || display == 'toBlock') {
-                        select.css('display', 'block');
-                    } else if(display == 'block' || display == 'toNone') {
-                        select.css('display', 'none');
-                    }
-                }
-
-                input.on('click', function() {
-                    doSelectSwitch();
-                })
-                .on('keyup', function () {
-                    let key = event.which;
-
-                    if(key == 9) { // TAB
-                        doSelectSwitch('toBlock');
-                    }
-                })
-                .on('keydown', function() {
-                    let key = event.which;
-
-                    if(key == 13) { // ENTER
-                        doSelectSwitch();
-                    }
-                });
+            // Initialize DataTables
+            jobsTable = $('#jobs_table').DataTable({
+                "paging": true,
+                "lengthChange": true,
+                "searching": true,
+                "ordering": true,
+                "info": true,
+                "autoWidth": false,
+                "columnDefs": [
+                    { "orderable": false, "targets": -1 } // Disable sorting on Actions column
+                ]
             });
 
-            $('.data-list-input select').each(function() {
-                let input  = $(this).siblings('.data-list-input input:first');
-                let select = $(this);
-
-                function doInputSet() {
-                    input.val(select.find('option:selected').val());
-                    input.trigger('focus');
-                    select.css('display', 'none');
-                }
-
-                select.on('keydown', function(event) {
-                    let key = event.which;
-
-                    if(key == 13) { // ENTER
-                        doInputSet();
-                    }
-                })
-                .children('option').each(function() {
-                    let option = $(this);
-
-                    option.on('click', function() {
-                        doInputSet();
-                    });
-                });
+            systemJobsTable = $('#system_jobs_table').DataTable({
+                "paging": true,
+                "lengthChange": true,
+                "searching": true,
+                "ordering": true,
+                "info": true,
+                "autoWidth": false
             });
 
-            $("#jobModal").on("shown.bs.modal", function(e){
-                let button = $(e.relatedTarget);
-                $('#jobModal .data-list-input select:first').css('display', 'none');
+            // Load all data on page load
+            loadJobs();
+            loadAllCrontabEntries();
+            loadEnvironmentVariables();
 
-                // Get block id if this is an edit
-                let block_id = button.data('block');
-                if (block_id) {
-                    $('#job-modal-label').html('Edit job');
-                    $('#block_id').val(block_id);
-                } else {
-                    $('#job-modal-label').html('New job');
-                    $('#block_id').val('');
-                }
-
-                let comment = $("#comment-"+block_id).text().trim();
-                $('#job-comment').val(comment);
-                let command = $('#command-'+block_id).text().trim();
-                $('#job-command').val(command);
-                let schedule = $('#schedule-'+block_id).text().trim();
-                $('#job-schedule').val(schedule);
+            // Event handlers
+            $('#newjob').on('click', function() {
+                openJobModal();
             });
 
-            $("#jobForm").on('submit', function(e) {
+            $('#backup_now').on('click', function() {
+                createBackup();
+            });
+
+            $('#refresh_jobs').on('click', function() {
+                loadJobs();
+                loadAllCrontabEntries();
+                loadEnvironmentVariables();
+            });
+
+            // Schedule presets
+            $('.schedule-preset').on('click', function(e) {
                 e.preventDefault();
-                
-                let url = '/api/v1/contrib/crontab/blocks';
-                let block_id = $('#block_id').val();
-
-                let comments = $('#job-comment').val().split('\n');
-                let schedule = $('#job-schedule').val();
-                let command  = $('#job-command').val();
-
-                let block = {
-                    'comments': comments,
-                    'events': [{
-                        'active': true,
-                        'schedule': schedule,
-                        'command': command
-                    }]
-                };
-
-                let success = 0;
-                if ( !block_id ) {
-                    let posting = $.ajax({
-                        url: url,
-                        method: 'POST',
-                        data: JSON.stringify(block),
-                        contentType: "application/json; charset=utf-8",
-                        dataType: "json"
-                    });
-
-                    posting.done(function(data) {
-                        $('#message').replaceWith('<div id="message" class="alert alert-success">Job added</div>');
-                        setTimeout(function(){
-                            window.location.reload();
-                        }, 800);
-                    });
-
-                    posting.fail(function(data) {
-                        $('#message').replaceWith('<div id="message" class="alert alert-danger">Job creation failed</div>');
-                    });
-                } else {
-                    url += '/' + block_id;
-                    block.id = block_id;
-                    let putting = $.ajax({
-                        method: 'PUT',
-                        url: url,
-                        data: JSON.stringify(block),
-                        contentType: "application/json; charset=utf-8",
-                        dataType: "json"
-                    });
-
-                    putting.done(function(data) {
-                        $('#message').replaceWith('<div id="message" class="alert alert-success">Job updated: '+data+'</div>');
-                        setTimeout(function(){
-                            window.location.reload();
-                        }, 800);
-                    });
-
-                    putting.fail(function(data) {
-                        $('#message').replaceWith('<div id="message" class="alert alert-danger">Job update failed</div>');
-                    });
-                }
-
-                // Close modal
-                $('#jobModal').modal('hide');
+                $('#job-schedule').val($(this).data('schedule'));
             });
 
-            $("#environmentForm").on('submit', function(e) {
+            // Add environment variable
+            $('#add-env-var').on('click', function() {
+                addEnvironmentVariable();
+            });
+
+            // Form submissions
+            $('#jobForm').on('submit', function(e) {
                 e.preventDefault();
-
-                console.log("Called environmentForm submit");
-                
-                let url = '/api/v1/contrib/crontab/environment';
-                let comments = [];
-                let environments = [];
-
-                let content = $('#env-content').val().split('\n');
-                content.forEach(function(line) {
-                    if ( line.startsWith("#") ) {
-                        comments.push(line);
-                    }
-                    else if(line.trim().length !== 0) {
-                        environments.push(line);
-                    }
-                });
-
-                let block = {
-                    'comments': comments,
-                    'environments': environments
-                };
-
-                let putting = $.ajax({
-                    method: 'PUT',
-                    url: url,
-                    data: JSON.stringify(block),
-                    contentType: "application/json; charset=utf-8",
-                    dataType: "json"
-                });
-
-                putting.done(function(data) {
-                    $('#message').replaceWith('<div id="message" class="alert alert-success">Environment updated</div>');
-                    setTimeout(function(){
-                        window.location.reload();
-                    }, 800);
-                });
-
-                putting.fail(function(data) {
-                    $('#message').replaceWith('<div id="message" class="alert alert-danger">Environment update failed</div>');
-                });
-
-                // Close modal
-                $('#environmentModal').modal('hide');
+                saveJob();
             });
 
-            $("#deleteModal").on("shown.bs.modal", function(e){
-                let button = $(e.relatedTarget);
-
-                // Get block id if this is an edit
-                let block_id = button.data('block');
-                $('#delete_id').val(block_id);
-            });
-
-            $("#deleteForm").on('submit', function(e) {
+            $('#deleteForm').on('submit', function(e) {
                 e.preventDefault();
-
-                let block_id = $('#delete_id').val();
-                let url = '/api/v1/contrib/crontab/blocks/' + block_id;
-
-                let deleting = $.ajax({
-                    url: url,
-                    method: 'DELETE'
-                });
-
-                deleting.done(function(data) {
-                    $('#message').replaceWith('<div id="message" class="alert alert-success">Job removed</div>');
-                    setTimeout(function(){
-                        window.location.reload();
-                    }, 800);
-                });
-
-                deleting.fail(function(data) {
-                    $('#message').replaceWith('<div id="message" class="alert alert-danger">Job removal failed</div>');
-                });
-
-                // Close modal
-                $('#deleteModal').modal('hide');
-            });
-
-            $("#backup_now").on('click', function(e){
-                let url = '/api/v1/contrib/crontab/backups';
-                let posting = $.post(
-                    url,
-                );
-    
-                posting.done(function(data) {
-                    $('#message').replaceWith('<div id="message" class="alert alert-success">Backup created: '+data.filename+'</div>');
-                });
-            
-                posting.fail(function(data) {
-                    $('#message').replaceWith('<div id="message" class="alert alert-danger">Backup failed</div>');
-                });
+                deleteJob();
             });
         });
+
+        function loadJobs() {
+            $.ajax({
+                url: '/api/v1/contrib/crontab/jobs',
+                method: 'GET',
+                success: function(data) {
+                    populateJobsTable(data.jobs);
+                },
+                error: function(xhr, status, error) {
+                    showMessage('Failed to load jobs: ' + error, 'danger');
+                }
+            });
+        }
+
+        function populateJobsTable(jobs) {
+            jobsTable.clear();
+
+            jobs.forEach(function(job) {
+                let statusBadge = job.enabled
+                    ? '<span class="badge bg-success">Enabled</span>'
+                    : '<span class="badge bg-secondary">Disabled</span>';
+
+                let envVars = '';
+                if (job.environment && Object.keys(job.environment).length > 0) {
+                    Object.keys(job.environment).forEach(function(key) {
+                        envVars += '<span class="env-var">' + key + '</span>';
+                    });
+                } else {
+                    envVars = '<span class="text-muted">None</span>';
+                }
+
+                // Use name, description, or command snippet for identification
+                let jobIdentifier = job.name || job.description || job.command.substring(0, 50) + (job.command.length > 50 ? '...' : '');
+
+                // Build description cell with name at top if present
+                let descriptionHtml = '';
+                if (job.name) {
+                    descriptionHtml += '<strong>' + job.name + '</strong><br>';
+                }
+                if (job.description) {
+                    descriptionHtml += job.description;
+                } else if (!job.name) {
+                    descriptionHtml = '<span class="text-muted">No description</span>';
+                }
+
+                let actions = `
+                    <button class="btn btn-xs btn-primary edit-job" data-job-id="${job.id}">
+                        <i class="fa fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-xs ${job.enabled ? 'btn-warning disable-job' : 'btn-success enable-job'}" data-job-id="${job.id}">
+                        <i class="fa ${job.enabled ? 'fa-pause' : 'fa-play'}"></i> ${job.enabled ? 'Disable' : 'Enable'}
+                    </button>
+                    <button class="btn btn-xs btn-danger delete-job" data-job-id="${job.id}" data-job-desc="${jobIdentifier}">
+                        <i class="fa fa-trash"></i> Delete
+                    </button>
+                `;
+
+                jobsTable.row.add([
+                    statusBadge,
+                    '<code class="schedule-preview">' + job.schedule + '</code>',
+                    '<code>' + job.command + '</code>',
+                    descriptionHtml,
+                    envVars,
+                    new Date(job.updated_at).toLocaleDateString(),
+                    actions
+                ]);
+            });
+
+            jobsTable.draw();
+
+            // Bind action handlers
+            bindActionHandlers();
+        }
+
+        function bindActionHandlers() {
+            $('.edit-job').off('click').on('click', function() {
+                let jobId = $(this).data('job-id');
+                openJobModal(jobId);
+                    });
+
+            $('.enable-job, .disable-job').off('click').on('click', function() {
+                let jobId = $(this).data('job-id');
+                let enable = $(this).hasClass('enable-job');
+                toggleJobStatus(jobId, enable);
+            });
+
+            $('.delete-job').off('click').on('click', function() {
+                let jobId = $(this).data('job-id');
+                let jobDesc = $(this).data('job-desc');
+                openDeleteModal(jobId, jobDesc);
+            });
+        }
+
+        function openJobModal(jobId = null) {
+            if (jobId) {
+                // Edit existing job
+                $('#job-modal-label').text('Edit Job');
+                $('#job-id').val(jobId);
+                loadJobForEdit(jobId);
+            } else {
+                // New job
+                $('#job-modal-label').text('New Job');
+                $('#job-id').val('');
+                clearJobForm();
+            }
+            $('#jobModal').modal('show');
+        }
+
+        function loadJobForEdit(jobId) {
+            $.ajax({
+                url: '/api/v1/contrib/crontab/jobs/' + jobId,
+                method: 'GET',
+                success: function(job) {
+                    $('#job-name').val(job.name);
+                    $('#job-description').val(job.description);
+                    $('#job-schedule').val(job.schedule);
+                    $('#job-command').val(job.command);
+                    $('#job-enabled').val(job.enabled ? '1' : '0');
+
+                    // Clear and populate environment variables
+                    $('#environment-container').empty();
+                    if (job.environment && Object.keys(job.environment).length > 0) {
+                        Object.keys(job.environment).forEach(function(key) {
+                            addEnvironmentVariable(key, job.environment[key]);
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showMessage('Failed to load job: ' + error, 'danger');
+                    }
+                });
+        }
+
+        function clearJobForm() {
+            $('#jobForm')[0].reset();
+            $('#environment-container').empty();
+        }
+
+        function addEnvironmentVariable(key = '', value = '') {
+            let envHtml = `
+                <div class="row mb-2 env-var-row">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control env-key" placeholder="Variable name" value="${key}">
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control env-value" placeholder="Variable value" value="${value}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-env-var">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            $('#environment-container').append(envHtml);
+
+            // Bind remove handler
+            $('.remove-env-var').off('click').on('click', function() {
+                $(this).closest('.env-var-row').remove();
+            });
+        }
+
+        function saveJob() {
+            let jobData = {
+                name: $('#job-name').val(),
+                description: $('#job-description').val(),
+                schedule: $('#job-schedule').val(),
+                command: $('#job-command').val(),
+                enabled: $('#job-enabled').val() === '1'
+            };
+
+            // Collect environment variables
+            let environment = {};
+            $('.env-var-row').each(function() {
+                let key = $(this).find('.env-key').val().trim();
+                let value = $(this).find('.env-value').val().trim();
+                if (key && value) {
+                    environment[key] = value;
+                }
+            });
+            jobData.environment = environment;
+
+            let jobId = $('#job-id').val();
+            let url = '/api/v1/contrib/crontab/jobs';
+            let method = 'POST';
+
+            if (jobId) {
+                url += '/' + jobId;
+                method = 'PUT';
+            }
+
+            $.ajax({
+                    url: url,
+                method: method,
+                data: JSON.stringify(jobData),
+                contentType: 'application/json',
+                success: function(data) {
+                    showMessage(jobId ? 'Job updated successfully' : 'Job created successfully', 'success');
+                    $('#jobModal').modal('hide');
+                    loadJobs();
+                },
+                error: function(xhr, status, error) {
+                    let message = 'Failed to save job';
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        message += ': ' + xhr.responseJSON.error;
+                    }
+                    showMessage(message, 'danger');
+                }
+            });
+        }
+
+        function toggleJobStatus(jobId, enable) {
+            let action = enable ? 'enable' : 'disable';
+            $.ajax({
+                url: '/api/v1/contrib/crontab/jobs/' + jobId + '/' + action,
+                method: 'POST',
+                success: function(data) {
+                    showMessage('Job ' + (enable ? 'enabled' : 'disabled') + ' successfully', 'success');
+                    loadJobs();
+                },
+                error: function(xhr, status, error) {
+                    showMessage('Failed to ' + action + ' job: ' + error, 'danger');
+                }
+            });
+        }
+
+        function openDeleteModal(jobId, jobDesc) {
+            $('#delete-job-id').val(jobId);
+            $('#delete-job-name').text(jobDesc);
+            $('#deleteModal').modal('show');
+        }
+
+        function deleteJob() {
+            let jobId = $('#delete-job-id').val();
+            $.ajax({
+                url: '/api/v1/contrib/crontab/jobs/' + jobId,
+                method: 'DELETE',
+                success: function(data) {
+                    showMessage('Job deleted successfully', 'success');
+                $('#deleteModal').modal('hide');
+                    loadJobs();
+                },
+                error: function(xhr, status, error) {
+                    showMessage('Failed to delete job: ' + error, 'danger');
+                }
+            });
+        }
+
+        function loadAllCrontabEntries() {
+            $.ajax({
+                url: '/api/v1/contrib/crontab/crontab/all',
+                method: 'GET',
+                success: function(data) {
+                    populateSystemJobsTable(data.entries);
+                },
+                error: function(xhr, status, error) {
+                    showMessage('Failed to load system jobs: ' + error, 'danger');
+                }
+            });
+        }
+
+        function populateSystemJobsTable(entries) {
+            systemJobsTable.clear();
+
+            // Filter out managed jobs - only show system jobs
+            let systemJobs = entries.filter(entry => !entry.managed);
+
+            if (systemJobs.length === 0) {
+                systemJobsTable.row.add([
+                    '<span class="text-muted">-</span>',
+                    '<span class="text-muted">-</span>',
+                    '<span class="text-muted">No system jobs found</span>',
+                    '<span class="text-muted">-</span>'
+                ]);
+            } else {
+                systemJobs.forEach(function(entry) {
+                    let statusBadge = entry.enabled
+                        ? '<span class="badge bg-success">Active</span>'
+                        : '<span class="badge bg-secondary">Commented</span>';
+
+                    let comments = '';
+                    if (entry.comments && entry.comments.length > 0) {
+                        comments = entry.comments.map(c => '<div class="text-muted small">' + c + '</div>').join('');
+                    } else {
+                        comments = '<span class="text-muted">No comments</span>';
+                    }
+
+                    systemJobsTable.row.add([
+                        statusBadge,
+                        '<code class="schedule-preview">' + entry.schedule + '</code>',
+                        '<code>' + entry.command + '</code>',
+                        comments
+                    ]);
+                });
+            }
+
+            systemJobsTable.draw();
+        }
+
+        function loadEnvironmentVariables() {
+            $.ajax({
+                url: '/api/v1/contrib/crontab/crontab/environment',
+                method: 'GET',
+                success: function(data) {
+                    populateEnvironmentTable(data.environment);
+                },
+                error: function(xhr, status, error) {
+                    showMessage('Failed to load environment variables: ' + error, 'danger');
+                }
+            });
+        }
+
+        function populateEnvironmentTable(environment) {
+            let tbody = $('#env_vars_tbody');
+            tbody.empty();
+
+            if (!environment || Object.keys(environment).length === 0) {
+                tbody.append('<tr><td colspan="2" class="text-muted text-center">No global environment variables defined</td></tr>');
+            } else {
+                let count = 0;
+                Object.keys(environment).sort().forEach(function(key) {
+                    tbody.append(
+                        '<tr>' +
+                        '<td><strong>' + key + '</strong></td>' +
+                        '<td><code>' + environment[key] + '</code></td>' +
+                        '</tr>'
+                    );
+                    count++;
+                });
+
+                // Update the collapse button to show count
+                $('#env-heading button').html(
+                    '<i class="fa fa-list"></i> Global Environment Variables ' +
+                    '<span class="badge bg-info">' + count + '</span> ' +
+                    '<small class="text-muted">(click to expand)</small>'
+                );
+            }
+        }
+
+        function createBackup() {
+            $.ajax({
+                url: '/api/v1/contrib/crontab/backup',
+                method: 'POST',
+                success: function(data) {
+                    showMessage('Backup created: ' + data.filename, 'success');
+                },
+                error: function(xhr, status, error) {
+                    showMessage('Failed to create backup: ' + error, 'danger');
+                }
+            });
+        }
+
+        function showMessage(message, type) {
+            let alertClass = 'alert-' + type;
+            let messageHtml = '<div id="message" class="alert ' + alertClass + ' alert-dismissible fade show">' +
+                              message +
+                              '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                              '</div>';
+            $('#message').replaceWith(messageHtml);
+
+            // Auto-hide success messages
+            if (type === 'success') {
+                setTimeout(function() {
+                    $('#message').fadeOut();
+                }, 3000);
+            }
+        }
     </script>
 [% END %]
 

@@ -3,24 +3,119 @@ use utf8;
 package Koha::Plugin::Com::PTFSEurope::Crontab::Controller;
 
 use Modern::Perl;
-
-use C4::Log qw( logaction );
-
-use Koha::Plugin::Com::PTFSEurope::Crontab;
-
 use Mojo::Base 'Mojolicious::Controller';
 
-use POSIX qw(strftime);
-use Config::Crontab;
-
 use C4::Context;
-use C4::Log;
+use C4::Log qw( logaction );
+use Koha::Plugin::Com::PTFSEurope::Crontab;
+use Koha::Plugin::Com::PTFSEurope::Crontab::Manager;
+use POSIX qw(strftime);
+use Try::Tiny;
+
+
 
 =head1 API
 
 =head2 Class Methods
 
-=head3 Method to update a cron block
+=head3 list
+
+List all cron jobs
+
+=cut
+
+sub list {
+    my $c = shift->openapi->valid_input or return;
+
+    if ( my $r = check_user_allowlist($c) ) { return $r; }
+
+    try {
+        my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+            backup_dir => $plugin->mbf_dir . '/backups',
+        });
+
+        my $jobs = $manager->get_plugin_managed_jobs();
+        my @jobs_data = map {
+            {
+                id          => $_->{id},
+                name        => $_->{name},
+                description => $_->{description},
+                schedule    => $_->{schedule},
+                command     => $_->{command},
+                enabled     => $_->{enabled} ? Mojo::JSON->true : Mojo::JSON->false,
+                environment => $_->{environment},
+                created_at  => $_->{created},
+                updated_at  => $_->{updated}
+            }
+        } @$jobs;
+
+        return $c->render(
+            status  => 200,
+            openapi => { jobs => \@jobs_data }
+        );
+    } catch {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Failed to fetch jobs: $_" }
+        );
+    };
+}
+
+=head3 get
+
+Get a specific cron job
+
+=cut
+
+sub get {
+    my $c = shift->openapi->valid_input or return;
+
+    if ( my $r = check_user_allowlist($c) ) { return $r; }
+
+    my $job_id = $c->validation->param('job_id');
+
+    try {
+        my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+            backup_dir => $plugin->mbf_dir . '/backups',
+        });
+
+        my $jobs = $manager->get_plugin_managed_jobs();
+        my ($job) = grep { $_->{id} eq $job_id } @$jobs;
+
+        unless ($job) {
+            return $c->render(
+                status  => 404,
+                openapi => { error => "Job not found" }
+            );
+        }
+
+        return $c->render(
+            status  => 200,
+            openapi => {
+                id          => $job->{id},
+                name        => $job->{name},
+                description => $job->{description},
+                schedule    => $job->{schedule},
+                command     => $job->{command},
+                enabled     => $job->{enabled} ? Mojo::JSON->true : Mojo::JSON->false,
+                environment => $job->{environment},
+                created_at  => $job->{created},
+                updated_at  => $job->{updated}
+            }
+        );
+    } catch {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Failed to fetch job: $_" }
+        );
+    };
+}
+
+=head3 add
+
+Create a new cron job
 
 =cut
 
@@ -32,71 +127,77 @@ sub add {
     my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
-    my $ct        = Config::Crontab->new();
-    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
-    $ct->file($cron_file) if $cron_file;
-    $ct->mode('block');
-    $ct->read or do {
-        return $c->render(
-            status  => 500,
-            openapi => { error => "Could not read crontab file: " . $ct->error }
-        );
-    };
+    my $body = $c->req->json;
 
-    my $last_block = 0;
-    my @id_lines   = $ct->select( -type => 'comment', -data_re => "# BLOCKID: " );
-    if (@id_lines) {
-        $id_lines[-1]->data() =~ /.*(\d+)/;
-        $last_block = $1;
-    }
-
-    my $next_block = $last_block + 1;
-    my $body       = $c->req->json;
-
-    # Construct new block
-    my $lines;
-    my $newblock = Config::Crontab::Block->new();
-    push @{$lines},
-        Config::Crontab::Comment->new( -data => "# BLOCKID: $next_block" );
-
-    # Comments
-    for my $comment ( @{ $body->{comments} } ) {
-        push @{$lines}, Config::Crontab::Comment->new( -data => "# $comment" );
-    }
-
-    # Events
-    for my $event ( @{ $body->{events} } ) {
-        push @{$lines},
-            Config::Crontab::Event->new(
-            -datetime => $event->{schedule},
-            -command  => $event->{command}
+    # Validate required fields
+    for my $field (qw/name schedule command/) {
+        unless ($body->{$field}) {
+            return $c->render(
+                status  => 400,
+                openapi => { error => "Missing required field: $field" }
             );
+        }
     }
 
-    ## TODO: Add Environment handling as needed?
+    try {
+        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+            backup_dir => $plugin->mbf_dir . '/backups',
+        });
 
-    # Set block lines
-    $newblock->lines($lines);
+        my $job_id = $manager->generate_job_id();
+        my $now = strftime("%Y-%m-%d %H:%M:%S", localtime);
 
-    # Append block
-    $ct->last($newblock);
+        my $result = $manager->safely_modify_crontab(sub {
+            my ($ct) = @_;
 
-    # Write to crontab
-    $ct->write
-        or do {
+            my $block = $manager->create_job_block({
+                id          => $job_id,
+                name        => $body->{name},
+                description => $body->{description} || '',
+                schedule    => $body->{schedule},
+                command     => $body->{command},
+                environment => $body->{environment},
+                created     => $now,
+                updated     => $now,
+            });
+
+            $ct->last($block);
+            return 1;
+        });
+
+        unless ($result->{success}) {
+            die $result->{error};
+        }
+
+        logaction( 'SYSTEMPREFERENCE', 'ADD', $job_id, "CrontabPlugin: Created job '" . $body->{name} . "'" ) if $logging;
+
+        return $c->render(
+            status  => 201,
+            openapi => {
+                id          => $job_id,
+                name        => $body->{name},
+                description => $body->{description} || '',
+                schedule    => $body->{schedule},
+                command     => $body->{command},
+                enabled     => Mojo::JSON->true,
+                environment => $body->{environment} || {},
+                created_at  => $now,
+                updated_at  => $now
+            }
+        );
+    } catch {
         return $c->render(
             status  => 500,
-            openapi => { error => "Could not write to crontab: " . $ct->error }
+            openapi => { error => "Failed to create job: $_" }
         );
         };
-
-    logaction( 'SYSTEMPREFERENCE', 'ADD', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
-
-    return $c->render(
-        status  => 201,
-        openapi => { success => Mojo::JSON->true }
-    );
 }
+
+=head3 update
+
+Update an existing cron job
+
+=cut
 
 sub update {
     my $c = shift->openapi->valid_input or return;
@@ -106,78 +207,96 @@ sub update {
     my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
-    my $ct        = Config::Crontab->new();
-    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
-    $ct->file($cron_file) if $cron_file;
-    $ct->mode('block');
-    $ct->read or do {
+    my $job_id = $c->validation->param('job_id');
+    my $body   = $c->req->json;
+
+    try {
+        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+            backup_dir => $plugin->mbf_dir . '/backups',
+        });
+
+        my $updated_job;
+
+        my $result = $manager->safely_modify_crontab(sub {
+            my ($ct) = @_;
+
+            my $block = $manager->find_job_block($ct, $job_id);
+            unless ($block) {
+                die "Job not found";
+            }
+
+            # Build updates hash from body
+            my %updates;
+            $updates{name} = $body->{name} if defined $body->{name};
+            $updates{description} = $body->{description} if defined $body->{description};
+            $updates{schedule} = $body->{schedule} if defined $body->{schedule};
+            $updates{command} = $body->{command} if defined $body->{command};
+            $updates{environment} = $body->{environment} if defined $body->{environment};
+
+            $manager->update_job_block($block, \%updates);
+
+            # Get updated job data for response
+            my $metadata = $manager->parse_job_metadata($block);
+            my @events = $block->select(-type => 'event');
+            my %env;
+            for my $env_var ($block->select(-type => 'env')) {
+                $env{$env_var->name} = $env_var->value;
+            }
+
+            $updated_job = {
+                id          => $metadata->{'crontab-manager-id'},
+                name        => $metadata->{name} || '',
+                description => $metadata->{description} || '',
+                schedule    => $events[0] ? $events[0]->datetime : '',
+                command     => $events[0] ? $events[0]->command : '',
+                enabled     => @events ? 1 : 0,
+                environment => \%env,
+                created_at  => $metadata->{created} || '',
+                updated_at  => $metadata->{updated} || '',
+            };
+
+            return 1;
+        });
+
+        unless ($result->{success}) {
+            if ($result->{error} =~ /Job not found/) {
+                return $c->render(
+                    status  => 404,
+                    openapi => { error => "Job not found" }
+                );
+            }
+            die $result->{error};
+        }
+
+        logaction( 'SYSTEMPREFERENCE', 'MODIFY', $job_id, "CrontabPlugin: Updated job '" . $updated_job->{name} . "'" ) if $logging;
+
         return $c->render(
-            status  => 500,
-            openapi => { error => "Could not read crontab file" }
+            status  => 200,
+            openapi => {
+                id          => $updated_job->{id},
+                name        => $updated_job->{name},
+                description => $updated_job->{description},
+                schedule    => $updated_job->{schedule},
+                command     => $updated_job->{command},
+                enabled     => $updated_job->{enabled} ? Mojo::JSON->true : Mojo::JSON->false,
+                environment => $updated_job->{environment},
+                created_at  => $updated_job->{created_at},
+                updated_at  => $updated_job->{updated_at}
+            }
         );
-    };
-
-    # Find block
-    my $block_id = $c->validation->param('block_id');
-    my @id_lines = $ct->select( -type => 'comment', -data => "# BLOCKID: $block_id" );
-    unless ( scalar @id_lines == 1 ) {
+    } catch {
         return $c->render(
             status  => 500,
-            openapi => { error => "Could not uniquely identify cronjob block." }
-        );
-    }
-
-    my $block = $ct->block( $id_lines[0] );
-    my $body  = $c->req->json;
-
-    # Construct new block
-    my $lines;
-    my $newblock = Config::Crontab::Block->new();
-    push @{$lines},
-        Config::Crontab::Comment->new( -data => "# BLOCKID: $block_id" );
-
-    # Comments
-    for my $comment ( @{ $body->{comments} } ) {
-        push @{$lines}, Config::Crontab::Comment->new( -data => "# $comment" );
-    }
-
-    # Environment
-    for my $environment ( @{ $body->{environments} } ) {
-        push @{$lines},
-            Config::Crontab::Env->new( -data => $environment );
-    }
-
-    # Events
-    for my $event ( @{ $body->{events} } ) {
-        push @{$lines},
-            Config::Crontab::Event->new(
-            -datetime => $event->{schedule},
-            -command  => $event->{command}
-            );
-    }
-
-    # Set block lines
-    $newblock->lines($lines);
-
-    # Replace block
-    $ct->replace( $block, $newblock );
-
-    # Write to crontab
-    $ct->write
-        or do {
-        return $c->render(
-            status  => 500,
-            openapi => { error => "Could not write to crontab: " . $ct->error }
+            openapi => { error => "Failed to update job: $_" }
         );
         };
-
-    logaction( 'SYSTEMPREFERENCE', 'MODIFY', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
-
-    return $c->render(
-        status  => 200,
-        openapi => { success => Mojo::JSON->true }
-    );
 }
+
+=head3 delete
+
+Delete a cron job
+
+=cut
 
 sub delete {
     my $c = shift->openapi->valid_input or return;
@@ -187,53 +306,64 @@ sub delete {
     my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
-    my $ct        = Config::Crontab->new();
-    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
-    $ct->file($cron_file) if $cron_file;
-    $ct->mode('block');
-    $ct->read or do {
+    my $job_id = $c->validation->param('job_id');
+
+    try {
+        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+            backup_dir => $plugin->mbf_dir . '/backups',
+        });
+
+        my $job_name;
+
+        my $result = $manager->safely_modify_crontab(sub {
+            my ($ct) = @_;
+
+            my $block = $manager->find_job_block($ct, $job_id);
+            unless ($block) {
+                die "Job not found";
+            }
+
+            # Get job name before deletion for logging
+            my $metadata = $manager->parse_job_metadata($block);
+            $job_name = $metadata->{name} || '';
+
+            # Remove the block from crontab
+            $ct->remove($block);
+
+            return 1;
+        });
+
+        unless ($result->{success}) {
+            if ($result->{error} =~ /Job not found/) {
+                return $c->render(
+                    status  => 404,
+                    openapi => { error => "Job not found" }
+                );
+            }
+            die $result->{error};
+        }
+
+        logaction( 'SYSTEMPREFERENCE', 'DELETE', $job_id, "CrontabPlugin: Deleted job '$job_name'" ) if $logging;
+
+        return $c->render(
+            status  => 204,
+            openapi => { success => Mojo::JSON->true }
+        );
+    } catch {
         return $c->render(
             status  => 500,
-            openapi => { error => "Could not read crontab file" }
+            openapi => { error => "Failed to delete job: $_" }
         );
     };
-
-    # Find block
-    my $block_id = $c->validation->param('block_id');
-    my @id_lines = $ct->select( -type => 'comment', -data => "# BLOCKID: $block_id" );
-    unless ( scalar @id_lines == 1 ) {
-        return $c->render(
-            status  => 500,
-            openapi => { error => "Could not uniquely identify cronjob block." }
-        );
-    }
-
-    my $block = $ct->block( $id_lines[0] );
-    $ct->remove($block) or do {
-        return $c->render(
-            status  => 500,
-            openapi => { error => "Could not remove block: " . $ct->error }
-        );
-    };
-
-    # Write to crontab
-    $ct->write
-        or do {
-        return $c->render(
-            status  => 500,
-            openapi => { error => "Could not write to crontab: " . $ct->error }
-        );
-        };
-
-    logaction( 'SYSTEMPREFERENCE', 'DELETE', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
-
-    return $c->render(
-        status  => 204,
-        openapi => { success => Mojo::JSON->true }
-    );
 }
 
-sub update_environment {
+=head3 enable
+
+Enable a cron job
+
+=cut
+
+sub enable {
     my $c = shift->openapi->valid_input or return;
 
     if ( my $r = check_user_allowlist($c) ) { return $r; }
@@ -241,69 +371,131 @@ sub update_environment {
     my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
-    my $ct        = Config::Crontab->new();
-    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
-    $ct->file($cron_file) if $cron_file;
-    $ct->mode('block');
-    $ct->read or do {
+    my $job_id = $c->validation->param('job_id');
+
+    try {
+        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+            backup_dir => $plugin->mbf_dir . '/backups',
+        });
+
+        my $job_name;
+
+        my $result = $manager->safely_modify_crontab(sub {
+            my ($ct) = @_;
+
+            my $block = $manager->find_job_block($ct, $job_id);
+            unless ($block) {
+                die "Job not found";
+            }
+
+            my $metadata = $manager->parse_job_metadata($block);
+            $job_name = $metadata->{name} || '';
+
+            # Enable event by setting active flag
+            my @events = $block->select(-type => 'event');
+            for my $event (@events) {
+                $event->active(1);
+            }
+
+            return 1;
+        });
+
+        unless ($result->{success}) {
+            if ($result->{error} =~ /Job not found/) {
+                return $c->render(
+                    status  => 404,
+                    openapi => { error => "Job not found" }
+                );
+            }
+            die $result->{error};
+        }
+
+        logaction( 'SYSTEMPREFERENCE', 'MODIFY', $job_id, "CrontabPlugin: Enabled job '$job_name'" ) if $logging;
+
         return $c->render(
-            status  => 500,
-            openapi => { error => "Could not read crontab file" }
+            status  => 200,
+            openapi => { success => Mojo::JSON->true }
         );
-    };
-
-    # Environment is special BLOCKID: 0
-    my $block_id = 0;
-    my @id_lines = $ct->select( -type => 'comment', -data => "# BLOCKID: $block_id" );
-    unless ( scalar @id_lines == 1 ) {
+    } catch {
         return $c->render(
             status  => 500,
-            openapi => { error => "Could not uniquely identify environment block." }
-        );
-    }
-
-    my $block = $ct->block( $id_lines[0] );
-    my $body  = $c->req->json;
-
-    # Construct new block
-    my $lines;
-    my $newblock = Config::Crontab::Block->new();
-    push @{$lines},
-        Config::Crontab::Comment->new( -data => "# BLOCKID: $block_id" );
-
-    # Comments
-    for my $comment ( @{ $body->{comments} } ) {
-        push @{$lines}, Config::Crontab::Comment->new( -data => "$comment" );
-    }
-
-    # Environment
-    for my $environment ( @{ $body->{environments} } ) {
-        push @{$lines},
-            Config::Crontab::Env->new( -data => "$environment" );
-    }
-
-    # Set block lines
-    $newblock->lines($lines);
-
-    # Replace block
-    $ct->replace( $block, $newblock );
-
-    # Write to crontab
-    $ct->write
-        or do {
-        return $c->render(
-            status  => 500,
-            openapi => { error => "Could not write to crontab: " . $ct->error }
+            openapi => { error => "Failed to enable job: $_" }
         );
         };
-
-    logaction( 'SYSTEMPREFERENCE', 'MODIFY', $$, "CronTabPlugin | \n" . $ct->dump ) if $logging;
-
-    return $c->render(
-        status  => 200,
-        openapi => { success => Mojo::JSON->true }
-    );
 }
+
+=head3 disable
+
+Disable a cron job
+
+=cut
+
+sub disable {
+    my $c = shift->openapi->valid_input or return;
+
+    if ( my $r = check_user_allowlist($c) ) { return $r; }
+
+    my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+    my $logging = $plugin->retrieve_data('enable_logging') // 1;
+
+    my $job_id = $c->validation->param('job_id');
+
+    try {
+        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+            backup_dir => $plugin->mbf_dir . '/backups',
+        });
+
+        my $job_name;
+
+        my $result = $manager->safely_modify_crontab(sub {
+            my ($ct) = @_;
+
+            my $block = $manager->find_job_block($ct, $job_id);
+            unless ($block) {
+                die "Job not found";
+            }
+
+            my $metadata = $manager->parse_job_metadata($block);
+            $job_name = $metadata->{name} || '';
+
+            # Disable event by setting active flag to 0
+            my @events = $block->select(-type => 'event');
+            for my $event (@events) {
+                $event->active(0);
+            }
+
+            return 1;
+        });
+
+        unless ($result->{success}) {
+            if ($result->{error} =~ /Job not found/) {
+                return $c->render(
+                    status  => 404,
+                    openapi => { error => "Job not found" }
+                );
+            }
+            die $result->{error};
+        }
+
+        logaction( 'SYSTEMPREFERENCE', 'MODIFY', $job_id, "CrontabPlugin: Disabled job '$job_name'" ) if $logging;
+
+        return $c->render(
+            status  => 200,
+            openapi => { success => Mojo::JSON->true }
+        );
+    } catch {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Failed to disable job: $_" }
+        );
+        };
+}
+
+=head3 backup
+
+Create a backup of current job configuration
+
+=cut
 
 sub backup {
     my $c = shift->openapi->valid_input or return;
@@ -312,32 +504,113 @@ sub backup {
 
     my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new;
 
-    my $ct        = Config::Crontab->new();
-    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
-    $ct->file($cron_file) if $cron_file;
-    $ct->mode('block');
-    $ct->read or do {
+    try {
+        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+            backup_dir => $plugin->mbf_dir . '/backups',
+        });
+
+        # This creates a crontab backup file
+        my $backup_file = $manager->backup_crontab();
+
+        unless ($backup_file) {
+            die "Failed to create backup";
+        }
+
+        # Extract just the filename from the full path
+        my $filename = (split('/', $backup_file))[-1];
+
+        return $c->render(
+            status  => 200,
+            openapi => { filename => $filename }
+        );
+    } catch {
         return $c->render(
             status  => 500,
-            openapi => { error => "Could not read crontab file" }
+            openapi => { error => "Failed to create backup: $_" }
         );
     };
+}
 
-    # Take a backup
-    my $path       = $plugin->mbf_dir . '/backups/';
-    my $now_string = strftime "%F_%H-%M-%S", localtime;
-    my $filename   = $path . 'backup_' . $now_string;
-    $ct->write("$filename") or do {
+=head3 list_all
+
+List all crontab entries (both plugin-managed and system jobs)
+
+=cut
+
+sub list_all {
+    my $c = shift->openapi->valid_input or return;
+
+    if ( my $r = check_user_allowlist($c) ) { return $r; }
+
+    try {
+        my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+            backup_dir => $plugin->mbf_dir . '/backups',
+        });
+
+        my $entries = $manager->get_all_crontab_entries();
+        my @entries_data = map {
+            my $entry = {
+                schedule => $_->{schedule},
+                command => $_->{command},
+                enabled => $_->{enabled} ? Mojo::JSON->true : Mojo::JSON->false,
+                managed => $_->{managed} ? Mojo::JSON->true : Mojo::JSON->false,
+                comments => $_->{comments} || [],
+            };
+
+            # Add managed job fields if applicable
+            if ($_->{managed}) {
+                $entry->{id} = $_->{id};
+                $entry->{name} = $_->{name};
+                $entry->{description} = $_->{description};
+                $entry->{created_at} = $_->{created};
+                $entry->{updated_at} = $_->{updated};
+            }
+
+            $entry;
+        } @$entries;
+
+        return $c->render(
+            status  => 200,
+            openapi => { entries => \@entries_data }
+        );
+    } catch {
         return $c->render(
             status  => 500,
-            openapi => { error => "Could not write to backup: " . $ct->error }
+            openapi => { error => "Failed to fetch crontab entries: $_" }
         );
     };
+}
 
-    return $c->render(
-        status  => 200,
-        openapi => { filename => "backup_" . $now_string }
-    );
+=head3 get_environment
+
+Get global environment variables from the crontab
+
+=cut
+
+sub get_environment {
+    my $c = shift->openapi->valid_input or return;
+
+    if ( my $r = check_user_allowlist($c) ) { return $r; }
+
+    try {
+        my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+            backup_dir => $plugin->mbf_dir . '/backups',
+        });
+
+        my $env = $manager->get_global_environment();
+
+        return $c->render(
+            status  => 200,
+            openapi => { environment => $env }
+        );
+    } catch {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Failed to fetch environment: $_" }
+        );
+    };
 }
 
 sub check_user_allowlist {
@@ -345,7 +618,17 @@ sub check_user_allowlist {
 
     if ( my $koha_plugin_crontab_user_allowlist = C4::Context->config('koha_plugin_crontab_user_allowlist') ) {
         my @borrowernumbers = split( ',', $koha_plugin_crontab_user_allowlist );
-        my $bn              = C4::Context->userenv->{number};
+
+        # Check if user is logged in
+        my $userenv = C4::Context->userenv;
+        unless ($userenv && $userenv->{number}) {
+            return $c->render(
+                status  => 401,
+                openapi => { error => "Authentication required" }
+            );
+        }
+
+        my $bn = $userenv->{number};
         if ( grep( /^$bn$/, @borrowernumbers ) ) {
             return undef;
         } else {
@@ -355,6 +638,9 @@ sub check_user_allowlist {
             );
         }
     }
+
+    # If no allowlist is configured, allow access (you might want to change this)
+    return undef;
 }
 
 1;

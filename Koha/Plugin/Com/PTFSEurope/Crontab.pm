@@ -7,21 +7,16 @@ use base qw(Koha::Plugins::Base);
 
 use POSIX qw(strftime);
 use Module::Metadata;
-use Config::Crontab;
-use File::Find;
-use YAML::XS;
+use JSON;
 
 use C4::Context;
 
-$YAML::XS::Boolean = "JSON::PP";
+BEGIN {
+    my $path = Module::Metadata->find_module_by_name(__PACKAGE__);
+    $path =~ s{[.]pm$}{/lib}xms;
+    unshift @INC, $path;
+}
 
-#BEGIN {
-#    my $path = Module::Metadata->find_module_by_name(__PACKAGE__);
-#    $path =~ s!\.pm$!/lib!;
-#    unshift @INC, $path;
-#
-#    use Crontab::API;
-#}
 
 our $VERSION  = "{VERSION}";
 our $metadata = {
@@ -48,6 +43,7 @@ sub admin {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
+    # Check user authorization
     if ( my $koha_plugin_crontab_user_allowlist = C4::Context->config('koha_plugin_crontab_user_allowlist') ) {
         my @borrowernumbers = split( ',', $koha_plugin_crontab_user_allowlist );
         my $bn              = C4::Context->userenv->{number};
@@ -58,98 +54,16 @@ sub admin {
         }
     }
 
+    # Show the modern job management interface
     my $template = $self->get_template( { file => 'crontab.tt' } );
-
-    my $ct        = Config::Crontab->new();
-    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
-    $ct->file($cron_file) if $cron_file;
-    $ct->mode('block');
-    $ct->read or do {
-        $template->param( error => $ct->error );
-        $self->output_html( $template->output() );
-        return;
-    };
-
-    my $blocks = [];
-    my @environment;
-    my @bins;
-    for my $block ( $ct->blocks ) {
-
-        # Get block parts
-        my @comments = $block->select( -type => 'comment' );
-        my @env      = $block->select( -type => 'env' );
-        my @events   = $block->select( -type => 'event' );
-
-        # Get block id
-        my $id_line = shift @comments;
-
-        # Skip first block (plugin header)
-        next if ( $id_line->data =~ 'Koha Crontab manager' );
-
-        # Set block id
-        my $id;
-        if ( $id_line->data =~ /# BLOCKID: (\d+)/ ) {
-            $id = $1;
-        } else {
-            $template->param( error => "Found block with missing ID: " . $id_line->data );
-            $self->output_html( $template->output() );
-            return;
-        }
-
-        # We want a list of commands, find cronjobs directory
-        my @cronjob_paths = $block->select( -type => 'env', -name => 'KOHA_CRON_PATH' );
-        if ( defined $cronjob_paths[0] ) {
-            my $cronjob_path = $cronjob_paths[0]->value;
-            if ( -d $cronjob_path ) {
-                find(
-                    sub {
-                        my $abs_filename = $File::Find::name;
-                        $abs_filename =~ m/($cronjob_path)(.*)/;
-                        my $rel_filename = "\$KOHA_CRON_PATH" . $2;
-
-                        push @bins, $rel_filename
-                            if ( -f $abs_filename && ( $abs_filename =~ /\.pl\z/ || $abs_filename =~ /\.sh\z/ ) );
-                    },
-                    $cronjob_path
-                );
-            }
-        }
-
-        # Global environment block
-        unless (@events) {
-            push @environment, @comments;
-            push @environment, @env;
-            next;
-        }
-
-        my @comments_stripped;
-        for my $comment (@comments) {
-            my $stripped = $comment->dump;
-            $stripped =~ s/^# //;
-            push @comments_stripped, $stripped;
-        }
-
-        push @{$blocks},
-            {
-            id          => $id,
-            comments    => \@comments_stripped,
-            environment => \@env,
-            events      => \@events
-            };
-    }
-    $template->param(
-        environment => \@environment,
-        bins        => \@bins,
-        blocks      => $blocks
-    );
     $self->output_html( $template->output() );
 }
 
 sub api_routes {
-    my ( $self, $args ) = @_;
+    my ($self) = @_;
 
-    my $spec_str = $self->mbf_read('openapi.yaml');
-    my $spec     = Load $spec_str;
+    my $spec_str = $self->mbf_read('api/openapi.json');
+    my $spec     = decode_json($spec_str);
 
     return $spec;
 }
@@ -163,7 +77,7 @@ sub api_namespace {
 =head2 configure
 
   Configuration routine
-  
+
 =cut
 
 sub configure {
@@ -190,104 +104,157 @@ sub configure {
 sub install() {
     my ( $self, $args ) = @_;
 
-    my $existing = 1;
+    # Check if Config::Crontab is available (required for cron management)
+    unless ( $self->_load_config_crontab() ) {
+        warn "Config::Crontab not available - crontab management will not be available";
+        warn "Please install libconfig-crontab-perl package or Config::Crontab CPAN module";
+        return 0;
+    }
+
+    # Ensure backup directory exists
+    my $backup_dir = $self->mbf_dir . '/backups';
+    unless (-d $backup_dir) {
+        require File::Path;
+        File::Path::make_path($backup_dir) or do {
+            warn "Failed to create backup directory: $!";
+            return 0;
+        };
+    }
+
+    # Store installation success
+    $self->store_data( {
+        installation_date => strftime("%Y-%m-%d %H:%M:%S", localtime),
+    } );
+
+    return 1;
+}
+
+sub enable {
+    my ( $self ) = @_;
+
+    # Call parent enable method
+    $self->SUPER::enable();
+
+    # Ensure Config::Crontab is loaded
+    unless ( $self->_load_config_crontab() ) {
+        warn "Config::Crontab not available - cannot enable crontab management";
+        return;
+    }
+
+    # In crontab-primary model, jobs are added individually via the API
+    # No centralized manager script needed
+    # Just verify we can access the crontab
 
     my $ct        = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
     $ct->file($cron_file) if $cron_file;
     $ct->mode('block');
     $ct->read or do {
-        $existing = 0;
-        warn "No crontab found, installing default";
+        warn "No crontab found, creating new one";
     };
 
-    my $global_env = 0;
-    if ($existing) {
+    # Create a backup on enable
+    my $path       = $self->mbf_dir . '/backups/';
+    my $now_string = strftime "%F_%H-%M-%S", localtime;
+    my $filename   = $path . 'enable_' . $now_string;
 
-        # Take a backup
-        my $path       = $self->mbf_dir . '/backups/';
-        my $now_string = strftime "%F_%H-%M-%S", localtime;
-        my $filename   = $path . 'install_' . $now_string;
-        $ct->write("$filename");
+    my $backup_ct = Config::Crontab->new();
+    my $backup_cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
+    $backup_ct->file($backup_cron_file) if $backup_cron_file;
+    $backup_ct->mode('block');
+    $backup_ct->read();
+    $backup_ct->write("$filename");
 
-        # Read existing crontab, update it to identify blocks
-        # we can manage
-        # BLOCKID:
-        my $block_id = 0;
-        for my $block ( $ct->blocks ) {
-            for my $comment (
-                $block->select(
-                    -type    => 'comment',
-                    -data_re => 'Koha Crontab manager'
-                )
-                )
-            {
-                return 1;    # Already installed
-            }
+    warn "Plugin enabled - jobs can now be managed via the web interface";
 
-            if ( $block_id == 0 ) {
-                my @env    = $block->select( -type => 'env' );
-                my @events = $block->select( -type => 'event' );
-                if ( @env && !@events ) {
-                    $global_env = 1;
-                    $block->first( Config::Crontab::Comment->new( -data => "# BLOCKID: " . $block_id ) );
-                }
-            } else {
-                $block->first( Config::Crontab::Comment->new( -data => "# BLOCKID: " . ++$block_id ) );
+    return $self;
+}
+
+sub disable {
+    my ( $self ) = @_;
+
+    # Call parent disable method
+    $self->SUPER::disable();
+
+    # In crontab-primary model, we can optionally remove all plugin-managed jobs
+    # or just leave them (they won't be editable via the UI when plugin is disabled)
+    # For now, we'll leave jobs in place and just create a backup
+
+    unless ( $self->_load_config_crontab() ) {
+        warn "Config::Crontab not available during disable";
+        return $self;
+    }
+
+    # Create a backup on disable
+    my $path       = $self->mbf_dir . '/backups/';
+    my $now_string = strftime "%F_%H-%M-%S", localtime;
+    my $filename   = $path . 'disable_' . $now_string;
+
+    my $backup_ct = Config::Crontab->new();
+    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
+    $backup_ct->file($cron_file) if $cron_file;
+    $backup_ct->mode('block');
+    $backup_ct->read();
+    $backup_ct->write("$filename");
+
+    warn "Plugin disabled - jobs remain in crontab but cannot be managed via UI";
+
+    return $self;
+}
+
+sub uninstall {
+    my ( $self ) = @_;
+
+    # Remove all plugin-managed jobs from crontab
+    unless ( $self->_load_config_crontab() ) {
+        warn "Config::Crontab not available during uninstall";
+        return 1;
+    }
+
+    require Koha::Plugin::Com::PTFSEurope::Crontab::Manager;
+    my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+        backup_dir => $self->mbf_dir . '/backups',
+    });
+
+    # Create final backup before uninstall
+    my $backup_file = $manager->backup_crontab();
+    warn "Created final backup before uninstall: $backup_file" if $backup_file;
+
+    # Remove all plugin-managed jobs
+    my $result = $manager->safely_modify_crontab(sub {
+        my ($ct) = @_;
+
+        my @blocks_to_remove;
+        for my $block ($ct->blocks) {
+            my $metadata = $manager->parse_job_metadata($block);
+            if ($metadata && $metadata->{'managed-by'} &&
+                $metadata->{'managed-by'} eq 'koha-crontab-plugin') {
+                push @blocks_to_remove, $block;
             }
         }
+
+        for my $block (@blocks_to_remove) {
+            $ct->remove($block);
+        }
+
+        warn "Removed " . scalar(@blocks_to_remove) . " plugin-managed job(s) from crontab";
+
+        return 1;
+    });
+
+    unless ($result->{success}) {
+        warn "Failed to remove plugin jobs from crontab: " . $result->{error};
     }
-
-    # Set first block to state we're maintained by the plugin
-    my $header_block = Config::Crontab::Block->new();
-    $header_block->first(
-        Config::Crontab::Comment->new( -data => "# This crontab file is managed by the Koha Crontab manager plugin" ) );
-    $ct->first($header_block);
-
-    # Set some useful global environment if it doesn't already exist
-    if ( !$global_env ) {
-        my $env_block = Config::Crontab::Block->new();
-        my $env_lines;
-
-        push @{$env_lines},
-            Config::Crontab::Comment->new( -data => '# BLOCKID: 0' );
-
-        push @{$env_lines},
-            Config::Crontab::Env->new(
-            -name   => 'PERL5LIB',
-            -value  => '/usr/share/koha/lib',
-            -active => 1
-            );
-        push @{$env_lines},
-            Config::Crontab::Env->new(
-            -name   => 'KOHA_CRON_PATH',
-            -value  => '/usr/share/koha/bin/cronjobs',
-            -active => 1
-            );
-
-        my $instance = C4::Context->config('database');
-        $instance =~ s/koha_//;
-
-        push @{$env_lines},
-            Config::Crontab::Env->new(
-            -name   => 'KOHA_CONF',
-            -value  => "/etc/koha/sites/$instance/koha-conf.xml",
-            -active => 1
-            );
-
-        $env_block->lines($env_lines);
-
-        $ct->after( $header_block, $env_block );
-    }
-
-    # Add a hash so we can tell if the managed content has
-    # been modified externally and warn the user during updates
-
-    ## write out crontab file
-    warn "Writing crontab: " . $ct->dump;
-    $ct->write;
 
     return 1;
+}
+
+
+sub _load_config_crontab {
+    my ( $self ) = @_;
+
+    eval { require Config::Crontab; };
+    return !$@;
 }
 
 1;

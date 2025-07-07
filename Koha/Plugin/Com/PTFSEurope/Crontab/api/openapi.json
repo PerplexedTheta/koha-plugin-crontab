@@ -1,0 +1,654 @@
+{
+    "/jobs": {
+        "get": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#list",
+            "operationId": "listCrontabJobs",
+            "tags": [
+                "cronjobs"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "responses": {
+                "200": {
+                    "description": "A list of cron jobs",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "jobs": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Unique job identifier"
+                                        },
+                                        "name": {
+                                            "type": "string",
+                                            "description": "Human-readable job name"
+                                        },
+                                        "description": {
+                                            "type": "string",
+                                            "description": "Optional job description"
+                                        },
+                                        "schedule": {
+                                            "type": "string",
+                                            "description": "Cron schedule expression"
+                                        },
+                                        "command": {
+                                            "type": "string",
+                                            "description": "Command to execute"
+                                        },
+                                        "enabled": {
+                                            "type": "boolean",
+                                            "description": "Whether the job is enabled"
+                                        },
+                                        "created_at": {
+                                            "description": "Job creation timestamp"
+                                        },
+                                        "updated_at": {
+                                            "description": "Job last update timestamp"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        },
+        "post": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#add",
+            "operationId": "addCrontabJob",
+            "tags": [
+                "cronjobs"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "consumes": [
+                "application/json"
+            ],
+            "parameters": [
+                {
+                    "name": "body",
+                    "in": "body",
+                    "required": true,
+                    "description": "Job creation data",
+                    "schema": {
+                        "type": "object",
+                        "required": [
+                            "name",
+                            "schedule",
+                            "command"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Human-readable job name"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Optional job description"
+                            },
+                            "schedule": {
+                                "type": "string",
+                                "description": "Cron schedule expression"
+                            },
+                            "command": {
+                                "type": "string",
+                                "description": "Command to execute"
+                            },
+                            "enabled": {
+                                "type": "boolean",
+                                "description": "Whether the job should be enabled",
+                                "default": true
+                            },
+                            "environment": {
+                                "type": "object",
+                                "description": "Environment variables for the job",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            ],
+            "responses": {
+                "201": {
+                    "description": "Job created successfully",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "description": "Unique job identifier"
+                            },
+                            "name": {
+                                "type": "string",
+                                "description": "Human-readable job name"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Optional job description"
+                            },
+                            "schedule": {
+                                "type": "string",
+                                "description": "Cron schedule expression"
+                            },
+                            "command": {
+                                "type": "string",
+                                "description": "Command to execute"
+                            },
+                            "enabled": {
+                                "type": "boolean",
+                                "description": "Whether the job is enabled"
+                            },
+                            "created_at": {
+                                "description": "Job creation timestamp"
+                            },
+                            "updated_at": {
+                                "description": "Job last update timestamp"
+                            }
+                        }
+                    }
+                },
+                "400": {
+                    "description": "Bad request"
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        }
+    },
+    "/jobs/{job_id}": {
+        "get": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#get",
+            "operationId": "getCrontabJob",
+            "tags": [
+                "cronjobs"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "parameters": [
+                {
+                    "name": "job_id",
+                    "in": "path",
+                    "description": "Job identifier",
+                    "required": true,
+                    "type": "string",
+                    "minimum": 1
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Job details",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "description": "Unique job identifier"
+                            },
+                            "name": {
+                                "type": "string",
+                                "description": "Human-readable job name"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Optional job description"
+                            },
+                            "schedule": {
+                                "type": "string",
+                                "description": "Cron schedule expression"
+                            },
+                            "command": {
+                                "type": "string",
+                                "description": "Command to execute"
+                            },
+                            "enabled": {
+                                "type": "boolean",
+                                "description": "Whether the job is enabled"
+                            },
+                            "created_at": {
+                                "description": "Job creation timestamp"
+                            },
+                            "updated_at": {
+                                "description": "Job last update timestamp"
+                            }
+                        }
+                    }
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "404": {
+                    "description": "Job not found"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        },
+        "put": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#update",
+            "operationId": "updateCrontabJob",
+            "tags": [
+                "cronjobs"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "consumes": [
+                "application/json"
+            ],
+            "parameters": [
+                {
+                    "name": "job_id",
+                    "in": "path",
+                    "description": "Job identifier",
+                    "required": true,
+                    "type": "string",
+                    "minimum": 1
+                },
+                {
+                    "name": "body",
+                    "in": "body",
+                    "required": true,
+                    "description": "Job update data",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Human-readable job name"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Optional job description"
+                            },
+                            "schedule": {
+                                "type": "string",
+                                "description": "Cron schedule expression"
+                            },
+                            "command": {
+                                "type": "string",
+                                "description": "Command to execute"
+                            },
+                            "enabled": {
+                                "type": "boolean",
+                                "description": "Whether the job is enabled"
+                            },
+                            "environment": {
+                                "type": "object",
+                                "description": "Environment variables for the job",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Job updated successfully",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "description": "Unique job identifier"
+                            },
+                            "name": {
+                                "type": "string",
+                                "description": "Human-readable job name"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Optional job description"
+                            },
+                            "schedule": {
+                                "type": "string",
+                                "description": "Cron schedule expression"
+                            },
+                            "command": {
+                                "type": "string",
+                                "description": "Command to execute"
+                            },
+                            "enabled": {
+                                "type": "boolean",
+                                "description": "Whether the job is enabled"
+                            },
+                            "created_at": {
+                                "description": "Job creation timestamp"
+                            },
+                            "updated_at": {
+                                "description": "Job last update timestamp"
+                            }
+                        }
+                    }
+                },
+                "400": {
+                    "description": "Bad request"
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "404": {
+                    "description": "Job not found"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        },
+        "delete": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#delete",
+            "operationId": "deleteCrontabJob",
+            "tags": [
+                "cronjobs"
+            ],
+            "parameters": [
+                {
+                    "name": "job_id",
+                    "in": "path",
+                    "description": "Job identifier",
+                    "required": true,
+                    "type": "string",
+                    "minimum": 1
+                }
+            ],
+            "responses": {
+                "204": {
+                    "description": "Job deleted successfully"
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "404": {
+                    "description": "Job not found"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        }
+    },
+    "/jobs/{job_id}/enable": {
+        "post": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#enable",
+            "operationId": "enableCrontabJob",
+            "tags": [
+                "cronjobs"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "parameters": [
+                {
+                    "name": "job_id",
+                    "in": "path",
+                    "description": "Job identifier",
+                    "required": true,
+                    "type": "string",
+                    "minimum": 1
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Job enabled successfully",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "success": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "404": {
+                    "description": "Job not found"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        }
+    },
+    "/jobs/{job_id}/disable": {
+        "post": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#disable",
+            "operationId": "disableCrontabJob",
+            "tags": [
+                "cronjobs"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "parameters": [
+                {
+                    "name": "job_id",
+                    "in": "path",
+                    "description": "Job identifier",
+                    "required": true,
+                    "type": "string",
+                    "minimum": 1
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Job disabled successfully",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "success": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "404": {
+                    "description": "Job not found"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        }
+    },
+    "/backup": {
+        "post": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#backup",
+            "operationId": "backupCrontabJobs",
+            "tags": [
+                "cronjobs"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "responses": {
+                "200": {
+                    "description": "Backup created successfully",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "filename": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        }
+    },
+    "/crontab/all": {
+        "get": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#list_all",
+            "operationId": "listAllCrontabEntries",
+            "tags": [
+                "crontab"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "responses": {
+                "200": {
+                    "description": "A list of all crontab entries (managed and system)",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "entries": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Job ID (only for managed jobs)"
+                                        },
+                                        "name": {
+                                            "type": "string",
+                                            "description": "Job name (only for managed jobs)"
+                                        },
+                                        "description": {
+                                            "type": "string",
+                                            "description": "Job description (only for managed jobs)"
+                                        },
+                                        "schedule": {
+                                            "type": "string",
+                                            "description": "Cron schedule expression"
+                                        },
+                                        "command": {
+                                            "type": "string",
+                                            "description": "Command to execute"
+                                        },
+                                        "enabled": {
+                                            "type": "boolean",
+                                            "description": "Whether the job is enabled"
+                                        },
+                                        "managed": {
+                                            "type": "boolean",
+                                            "description": "Whether this job is managed by the plugin"
+                                        },
+                                        "comments": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "description": "Comments associated with this entry"
+                                        },
+                                        "created_at": {
+                                            "type": "string",
+                                            "description": "Creation timestamp (only for managed jobs)"
+                                        },
+                                        "updated_at": {
+                                            "type": "string",
+                                            "description": "Update timestamp (only for managed jobs)"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        }
+    },
+    "/crontab/environment": {
+        "get": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#get_environment",
+            "operationId": "getCrontabEnvironment",
+            "tags": [
+                "crontab"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "responses": {
+                "200": {
+                    "description": "Global crontab environment variables",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "environment": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string"
+                                },
+                                "description": "Global environment variables"
+                            }
+                        }
+                    }
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        }
+    }
+}
