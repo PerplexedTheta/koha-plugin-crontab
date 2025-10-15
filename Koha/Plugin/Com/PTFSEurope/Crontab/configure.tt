@@ -60,6 +60,21 @@
                             </ol>
                         </fieldset>
 
+                        <fieldset class="rows">
+                            <legend>Security Settings</legend>
+
+                            <ol>
+                                <li>
+                                    <label for="user_allowlist">User allowlist: </label>
+                                    <input type="text" name="user_allowlist" id="user_allowlist" value="[% user_allowlist | html %]" size="50" />
+                                    <div class="hint">
+                                        Comma-separated list of borrowernumbers allowed to use this plugin. Leave empty to allow all staff users.
+                                        <br/>Example: 123,456,789
+                                    </div>
+                                </li>
+                            </ol>
+                        </fieldset>
+
                         <fieldset class="action">
                             <input type="hidden" name="save" value="1" />
                             <input class="btn btn-primary" type="submit" value="Save" />

@@ -616,8 +616,11 @@ sub get_environment {
 sub check_user_allowlist {
     my ($c) = @_;
 
-    if ( my $koha_plugin_crontab_user_allowlist = C4::Context->config('koha_plugin_crontab_user_allowlist') ) {
-        my @borrowernumbers = split( ',', $koha_plugin_crontab_user_allowlist );
+    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
+    my $user_allowlist = $plugin->retrieve_data('user_allowlist');
+
+    if ( $user_allowlist ) {
+        my @borrowernumbers = split( /\s*,\s*/, $user_allowlist );
 
         # Check if user is logged in
         my $userenv = C4::Context->userenv;
@@ -639,7 +642,7 @@ sub check_user_allowlist {
         }
     }
 
-    # If no allowlist is configured, allow access (you might want to change this)
+    # If no allowlist is configured, allow access
     return undef;
 }
 

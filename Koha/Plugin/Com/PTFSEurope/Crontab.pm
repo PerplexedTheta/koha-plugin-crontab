@@ -44,8 +44,8 @@ sub admin {
     my $cgi = $self->{'cgi'};
 
     # Check user authorization
-    if ( my $koha_plugin_crontab_user_allowlist = C4::Context->config('koha_plugin_crontab_user_allowlist') ) {
-        my @borrowernumbers = split( ',', $koha_plugin_crontab_user_allowlist );
+    if ( my $user_allowlist = $self->retrieve_data('user_allowlist') ) {
+        my @borrowernumbers = split( /\s*,\s*/, $user_allowlist );
         my $bn              = C4::Context->userenv->{number};
         unless ( grep( /^$bn$/, @borrowernumbers ) ) {
             my $t = $self->get_template( { file => 'access_denied.tt' } );
@@ -88,13 +88,17 @@ sub configure {
         my $template = $self->get_template( { file => 'configure.tt' } );
 
         ## Grab the values we already have for our settings, if any exist
-        $template->param( enable_logging => $self->retrieve_data('enable_logging'), );
+        $template->param(
+            enable_logging => $self->retrieve_data('enable_logging'),
+            user_allowlist => $self->retrieve_data('user_allowlist'),
+        );
 
         $self->output_html( $template->output() );
     } else {
         $self->store_data(
             {
                 enable_logging => $cgi->param('enable_logging'),
+                user_allowlist => $cgi->param('user_allowlist'),
             }
         );
         $self->go_home();
