@@ -65,11 +65,12 @@
 
                             <ol>
                                 <li>
-                                    <label for="user_allowlist">User allowlist: </label>
-                                    <input type="text" name="user_allowlist" id="user_allowlist" value="[% user_allowlist | html %]" size="50" />
+                                    <label for="patron_allowlist">User allowlist: </label>
+                                    <select name="patron_allowlist" id="patron_allowlist" multiple="multiple"></select>
+                                    <input type="hidden" name="user_allowlist" id="user_allowlist" value="[% user_allowlist | html %]" />
                                     <div class="hint">
-                                        Comma-separated list of borrowernumbers allowed to use this plugin. Leave empty to allow all staff users.
-                                        <br/>Example: 123,456,789
+                                        Search and select patrons allowed to use this plugin. Leave empty to allow all staff users.
+                                        <br/><strong>Note:</strong> Superlibrarians always have access regardless of this setting.
                                     </div>
                                 </li>
                             </ol>
@@ -92,10 +93,103 @@
     </div>
 
     [% MACRO jsinclude BLOCK %]
+        [% INCLUDE 'select2.inc' %]
         <script>
-            $( document ).ready( function() {
+            $(document).ready(function() {
                 $('#navmenulist a[href$="/cgi-bin/koha/plugins/plugins-home.pl"]').addClass("current");
-            } );
+
+                // Initialize patron allowlist select2
+                $("#patron_allowlist").kohaSelect({
+                    width: "50%",
+                    multiple: true,
+                    allowClear: true,
+                    minimumInputLength: 3,
+                    ajax: {
+                        url: "/api/v1/patrons",
+                        delay: 250,
+                        dataType: "json",
+                        headers: {
+                            "x-koha-embed": "library"
+                        },
+                        data: function(params) {
+                            let q = buildPatronSearchQuery(params.term);
+                            let query = {
+                                q: JSON.stringify(q),
+                                _page: params.page,
+                                _order_by: "+me.surname,+me.firstname"
+                            };
+                            return query;
+                        },
+                        processResults: function(data, params) {
+                            let results = [];
+                            data.results.forEach(function(patron) {
+                                patron.id = patron.patron_id;
+                                results.push(patron);
+                            });
+                            return {
+                                results: results,
+                                pagination: { more: data.pagination.more }
+                            };
+                        }
+                    },
+                    templateResult: function(patron) {
+                        if (!patron.patron_id) {
+                            return patron.text;
+                        }
+
+                        let $patron = $("<div></div>")
+                            .append(
+                                "" +
+                                (patron.surname ? escape_str(patron.surname) + ", " : "") +
+                                (patron.firstname ? escape_str(patron.firstname) + " " : "") +
+                                (patron.cardnumber ? " (" + escape_str(patron.cardnumber) + ")" : "") +
+                                "<small>" +
+                                (patron.library ? ' <span class="ac-library">' + escape_str(patron.library.name) + "</span>" : "") +
+                                "</small>"
+                            );
+                        return $patron;
+                    },
+                    templateSelection: function(patron) {
+                        if (!patron.surname) {
+                            return patron.text;
+                        }
+                        return escape_str(patron.surname) + ", " + escape_str(patron.firstname);
+                    },
+                    placeholder: __("Search for patrons to allow access")
+                });
+
+                // Load existing patrons if any
+                let existingIds = $("#user_allowlist").val();
+                if (existingIds) {
+                    let patronIds = existingIds.split(/\s*,\s*/);
+                    patronIds.forEach(function(patronId) {
+                        if (patronId) {
+                            $.ajax({
+                                url: "/api/v1/patrons/" + patronId,
+                                dataType: "json"
+                            }).done(function(patron) {
+                                let option = new Option(
+                                    patron.surname + ", " + patron.firstname,
+                                    patron.patron_id,
+                                    true,
+                                    true
+                                );
+                                $("#patron_allowlist").append(option).trigger('change');
+                            });
+                        }
+                    });
+                }
+
+                // Update hidden field on form submit
+                $("form").on("submit", function() {
+                    let selectedIds = $("#patron_allowlist").val();
+                    if (selectedIds && selectedIds.length > 0) {
+                        $("#user_allowlist").val(selectedIds.join(","));
+                    } else {
+                        $("#user_allowlist").val("");
+                    }
+                });
+            });
         </script>
     [% END %]
 

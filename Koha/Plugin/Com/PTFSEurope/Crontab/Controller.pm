@@ -616,22 +616,27 @@ sub get_environment {
 sub check_user_allowlist {
     my ($c) = @_;
 
+    # Check if user is logged in
+    my $userenv = C4::Context->userenv;
+    unless ($userenv && $userenv->{number}) {
+        return $c->render(
+            status  => 401,
+            openapi => { error => "Authentication required" }
+        );
+    }
+
+    # Superlibrarians always have access
+    my $is_superlibrarian = $userenv->{flags} && $userenv->{flags} == 1;
+    return undef if $is_superlibrarian;
+
+    # Check allowlist if configured
     my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new({});
     my $user_allowlist = $plugin->retrieve_data('user_allowlist');
 
     if ( $user_allowlist ) {
         my @borrowernumbers = split( /\s*,\s*/, $user_allowlist );
-
-        # Check if user is logged in
-        my $userenv = C4::Context->userenv;
-        unless ($userenv && $userenv->{number}) {
-            return $c->render(
-                status  => 401,
-                openapi => { error => "Authentication required" }
-            );
-        }
-
         my $bn = $userenv->{number};
+
         if ( grep( /^$bn$/, @borrowernumbers ) ) {
             return undef;
         } else {

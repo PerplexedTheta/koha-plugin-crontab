@@ -44,13 +44,18 @@ sub admin {
     my $cgi = $self->{'cgi'};
 
     # Check user authorization
-    if ( my $user_allowlist = $self->retrieve_data('user_allowlist') ) {
-        my @borrowernumbers = split( /\s*,\s*/, $user_allowlist );
-        my $bn              = C4::Context->userenv->{number};
-        unless ( grep( /^$bn$/, @borrowernumbers ) ) {
-            my $t = $self->get_template( { file => 'access_denied.tt' } );
-            $self->output_html( $t->output() );
-            exit 0;
+    my $userenv = C4::Context->userenv;
+    my $is_superlibrarian = $userenv->{flags} && $userenv->{flags} == 1;
+
+    unless ($is_superlibrarian) {
+        if ( my $user_allowlist = $self->retrieve_data('user_allowlist') ) {
+            my @borrowernumbers = split( /\s*,\s*/, $user_allowlist );
+            my $bn              = $userenv->{number};
+            unless ( grep( /^$bn$/, @borrowernumbers ) ) {
+                my $t = $self->get_template( { file => 'access_denied.tt' } );
+                $self->output_html( $t->output() );
+                exit 0;
+            }
         }
     }
 
