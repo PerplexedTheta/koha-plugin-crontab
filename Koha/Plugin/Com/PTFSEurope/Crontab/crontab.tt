@@ -123,6 +123,10 @@
                         <div class="tab-pane fade show active" id="managed-jobs" role="tabpanel">
                             <div class="page-section">
                                 <p class="text-muted">Jobs managed by this plugin. You can create, edit, enable/disable, and delete these jobs.</p>
+                                <div id="jobs-loading" class="text-center my-4" style="display: none;">
+                                    <i class="fa fa-spinner fa-pulse fa-3x fa-fw text-muted"></i>
+                                    <p class="text-muted mt-2">Loading managed jobs...</p>
+                                </div>
                                 <table class="table table-striped" id="jobs_table">
                                     <thead>
                                         <tr>
@@ -148,6 +152,10 @@
                                 <div class="alert alert-info">
                                     <i class="fa fa-info-circle"></i> These jobs are managed outside this plugin (e.g., by Ansible, manually, or other tools).
                                     They are displayed as <strong>read-only</strong> for your reference to avoid scheduling conflicts.
+                                </div>
+                                <div id="system-jobs-loading" class="text-center my-4" style="display: none;">
+                                    <i class="fa fa-spinner fa-pulse fa-3x fa-fw text-muted"></i>
+                                    <p class="text-muted mt-2">Loading system jobs...</p>
                                 </div>
                                 <table class="table table-striped" id="system_jobs_table">
                                     <thead>
@@ -366,6 +374,9 @@
         });
 
         function loadJobs() {
+            $('#jobs-loading').show();
+            $('#jobs_table').hide();
+
             $.ajax({
                 url: '/api/v1/contrib/crontab/jobs',
                 method: 'GET',
@@ -374,6 +385,8 @@
                 },
                 error: function(xhr, status, error) {
                     showMessage('Failed to load jobs: ' + error, 'danger');
+                    $('#jobs-loading').hide();
+                    $('#jobs_table').show();
                 }
             });
         }
@@ -433,6 +446,10 @@
             });
 
             jobsTable.draw();
+
+            // Hide spinner and show table
+            $('#jobs-loading').hide();
+            $('#jobs_table').show();
 
             // Bind action handlers
             bindActionHandlers();
@@ -613,6 +630,9 @@
         }
 
         function loadAllCrontabEntries() {
+            $('#system-jobs-loading').show();
+            $('#system_jobs_table').hide();
+
             $.ajax({
                 url: '/api/v1/contrib/crontab/crontab/all',
                 method: 'GET',
@@ -621,6 +641,8 @@
                 },
                 error: function(xhr, status, error) {
                     showMessage('Failed to load system jobs: ' + error, 'danger');
+                    $('#system-jobs-loading').hide();
+                    $('#system_jobs_table').show();
                 }
             });
         }
@@ -661,6 +683,10 @@
             }
 
             systemJobsTable.draw();
+
+            // Hide spinner and show table
+            $('#system-jobs-loading').hide();
+            $('#system_jobs_table').show();
         }
 
         function loadEnvironmentVariables() {
