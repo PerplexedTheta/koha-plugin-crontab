@@ -412,7 +412,7 @@ Martin Renvoize <martin.renvoize@openfifth.co.uk>
 
 =head1 COPYRIGHT
 
-Copyright 2025 PTFS Europe
+Copyright 2025 Open Fifth
 
 =head1 LICENSE
 

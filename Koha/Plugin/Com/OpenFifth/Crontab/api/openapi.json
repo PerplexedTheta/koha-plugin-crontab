@@ -1,7 +1,7 @@
 {
     "/jobs": {
         "get": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs#list",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Jobs#list",
             "operationId": "listCrontabJobs",
             "tags": [
                 "cronjobs"
@@ -68,7 +68,7 @@
             }
         },
         "post": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs#add",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Jobs#add",
             "operationId": "addCrontabJob",
             "tags": [
                 "cronjobs"
@@ -181,7 +181,7 @@
     },
     "/jobs/{job_id}": {
         "get": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs#get",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Jobs#get",
             "operationId": "getCrontabJob",
             "tags": [
                 "cronjobs"
@@ -253,7 +253,7 @@
             }
         },
         "put": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs#update",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Jobs#update",
             "operationId": "updateCrontabJob",
             "tags": [
                 "cronjobs"
@@ -369,7 +369,7 @@
             }
         },
         "delete": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs#delete",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Jobs#delete",
             "operationId": "deleteCrontabJob",
             "tags": [
                 "cronjobs"
@@ -405,7 +405,7 @@
     },
     "/jobs/{job_id}/enable": {
         "post": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs#enable",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Jobs#enable",
             "operationId": "enableCrontabJob",
             "tags": [
                 "cronjobs"
@@ -452,7 +452,7 @@
     },
     "/jobs/{job_id}/disable": {
         "post": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs#disable",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Jobs#disable",
             "operationId": "disableCrontabJob",
             "tags": [
                 "cronjobs"
@@ -499,7 +499,7 @@
     },
     "/backup": {
         "post": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs#backup",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Jobs#backup",
             "operationId": "backupCrontabJobs",
             "tags": [
                 "cronjobs"
@@ -533,7 +533,7 @@
     },
     "/crontab/all": {
         "get": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs#list_all",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Jobs#list_all",
             "operationId": "listAllCrontabEntries",
             "tags": [
                 "crontab"
@@ -615,7 +615,7 @@
     },
     "/crontab/environment": {
         "get": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs#get_environment",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Jobs#get_environment",
             "operationId": "getCrontabEnvironment",
             "tags": [
                 "crontab"
@@ -653,7 +653,7 @@
     },
     "/scripts": {
         "get": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Scripts#list",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Scripts#list",
             "operationId": "listCrontabScripts",
             "tags": [
                 "scripts"
@@ -712,7 +712,7 @@
     },
     "/scripts/details": {
         "get": {
-            "x-mojo-to": "Com::PTFSEurope::Crontab::REST::V1::Cron::Scripts#get",
+            "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Scripts#get",
             "operationId": "getCrontabScriptDetails",
             "tags": [
                 "scripts"

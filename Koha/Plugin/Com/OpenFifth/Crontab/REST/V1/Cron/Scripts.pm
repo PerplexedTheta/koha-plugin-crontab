@@ -1,19 +1,19 @@
 use utf8;
 
-package Koha::Plugin::Com::PTFSEurope::Crontab::REST::V1::Cron::Scripts;
+package Koha::Plugin::Com::OpenFifth::Crontab::REST::V1::Cron::Scripts;
 
 use Modern::Perl;
 use Mojo::Base 'Mojolicious::Controller';
 
 use C4::Context;
-use Koha::Plugin::Com::PTFSEurope::Crontab;
+use Koha::Plugin::Com::OpenFifth::Crontab;
 use Koha::Cron::File;
 use Koha::Cron::Script;
 use Try::Tiny;
 
 =head1 NAME
 
-Koha::Plugin::Com::PTFSEurope::Crontab::REST::V1::Cron::Scripts
+Koha::Plugin::Com::OpenFifth::Crontab::REST::V1::Cron::Scripts
 
 =head1 API
 
@@ -31,7 +31,7 @@ sub list {
     if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     try {
-        my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+        my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
@@ -69,7 +69,7 @@ sub get {
     my $script_name = $c->validation->param('name');
 
     try {
-        my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+        my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
@@ -138,7 +138,7 @@ sub _check_user_allowlist {
     return undef if $is_superlibrarian;
 
     # Check allowlist if configured
-    my $plugin         = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+    my $plugin         = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
     my $user_allowlist = $plugin->retrieve_data('user_allowlist');
 
     if ($user_allowlist) {

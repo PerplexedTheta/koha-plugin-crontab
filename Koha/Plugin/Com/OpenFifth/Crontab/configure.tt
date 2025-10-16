@@ -79,7 +79,7 @@
                         <fieldset class="action">
                             <input type="hidden" name="save" value="1" />
                             <input class="btn btn-primary" type="submit" value="Save" />
-                            <a class="cancel" href="/cgi-bin/koha/plugins/run.pl?class=Koha%3A%3APlugin%3A%3ACom%3A%3APTFSEurope%3A%3ACrontab&method=configure">Cancel</a>
+                            <a class="cancel" href="/cgi-bin/koha/plugins/run.pl?class=Koha%3A%3APlugin%3A%3ACom%3A%3AOpenFifth%3A%3ACrontab&method=configure">Cancel</a>
                         </fieldset>
                     </form>
                 </main>

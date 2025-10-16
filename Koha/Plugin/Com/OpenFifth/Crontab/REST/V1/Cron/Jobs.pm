@@ -1,13 +1,13 @@
 use utf8;
 
-package Koha::Plugin::Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs;
+package Koha::Plugin::Com::OpenFifth::Crontab::REST::V1::Cron::Jobs;
 
 use Modern::Perl;
 use Mojo::Base 'Mojolicious::Controller';
 
 use C4::Context;
 use C4::Log qw( logaction );
-use Koha::Plugin::Com::PTFSEurope::Crontab;
+use Koha::Plugin::Com::OpenFifth::Crontab;
 use Koha::Cron::File;
 use Koha::Cron::Job;
 use Koha::Cron::Script;
@@ -16,7 +16,7 @@ use Try::Tiny;
 
 =head1 NAME
 
-Koha::Plugin::Com::PTFSEurope::Crontab::REST::V1::Cron::Jobs
+Koha::Plugin::Com::OpenFifth::Crontab::REST::V1::Cron::Jobs
 
 =head1 API
 
@@ -34,7 +34,7 @@ sub list {
     if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     try {
-        my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+        my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
@@ -84,7 +84,7 @@ sub get {
     my $job_id = $c->validation->param('job_id');
 
     try {
-        my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+        my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
@@ -138,7 +138,7 @@ sub add {
 
     if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
-    my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+    my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
     my $body = $c->req->json;
@@ -241,7 +241,7 @@ sub update {
 
     if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
-    my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+    my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
     my $job_id = $c->validation->param('job_id');
@@ -369,7 +369,7 @@ sub delete {
 
     if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
-    my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+    my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
     my $job_id = $c->validation->param('job_id');
@@ -442,7 +442,7 @@ sub enable {
 
     if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
-    my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+    my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
     my $job_id = $c->validation->param('job_id');
@@ -517,7 +517,7 @@ sub disable {
 
     if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
-    my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+    my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
 
     my $job_id = $c->validation->param('job_id');
@@ -592,7 +592,7 @@ sub backup {
 
     if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
-    my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new;
+    my $plugin = Koha::Plugin::Com::OpenFifth::Crontab->new;
 
     try {
         my $crontab = Koha::Cron::File->new(
@@ -634,7 +634,7 @@ sub list_all {
     if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     try {
-        my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+        my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
@@ -689,7 +689,7 @@ sub get_environment {
     if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     try {
-        my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+        my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
@@ -737,7 +737,7 @@ sub _check_user_allowlist {
     return undef if $is_superlibrarian;
 
     # Check allowlist if configured
-    my $plugin         = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
+    my $plugin         = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
     my $user_allowlist = $plugin->retrieve_data('user_allowlist');
 
     if ($user_allowlist) {

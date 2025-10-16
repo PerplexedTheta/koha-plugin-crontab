@@ -13,14 +13,14 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://gitlab.com/ptfs-europe/koha-plugin-crontab.git"
+        "url": "https://gitlab.com/openfifth/koha-plugin-crontab.git"
     },
-    "author": "Martin Renvoize <martin.renvoize@ptfs-europe.com>",
+    "author": "Martin Renvoize <martin.renvoize@openfifth.co.uk>",
     "license": "GPL-3.0",
     "bugs": {
-        "url": "https://gitlab.com/ptfs-europe/koha-plugin-crontab/-/issues"
+        "url": "https://gitlab.com/openfifth/koha-plugin-crontab/-/issues"
     },
-    "homepage": "https://gitlab.com/ptfs-europe/koha-plugin-crontab",
+    "homepage": "https://gitlab.com/openfifth/koha-plugin-crontab",
     "dependencies": {
         "datetime": "0.0.3",
         "jsonfile": "^5.0.0",

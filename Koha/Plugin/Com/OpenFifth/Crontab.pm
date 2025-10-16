@@ -1,6 +1,6 @@
 use utf8;
 
-package Koha::Plugin::Com::PTFSEurope::Crontab;
+package Koha::Plugin::Com::OpenFifth::Crontab;
 
 use Modern::Perl;
 use base qw(Koha::Plugins::Base);
