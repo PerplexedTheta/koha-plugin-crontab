@@ -241,9 +241,47 @@
 
                         <div class="form-group mb-3">
                             <label for="job-command" class="form-label">Command *</label>
-                            <input type="text" class="form-control" id="job-command" required placeholder="/usr/local/bin/my-script.sh">
-                            <small class="form-text text-muted">Full path to the command or script to execute</small>
-                </div>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="job-command" required placeholder="/usr/local/bin/my-script.sh">
+                                <button class="btn btn-outline-secondary" type="button" id="browse-scripts">
+                                    <i class="fa fa-search"></i> Browse Scripts
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Full path to the command or script to execute, or browse available scripts</small>
+                        </div>
+
+                        <!-- Script Parameter Builder (collapsible) -->
+                        <div id="script-params-container" class="mb-3" style="display: none;">
+                            <div class="card">
+                                <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#script-params-collapse">
+                                    <h6 class="mb-0">
+                                        <i class="fa fa-sliders"></i> Script Parameters
+                                        <small class="text-muted">(click to expand)</small>
+                                    </h6>
+                                </div>
+                                <div id="script-params-collapse" class="collapse show">
+                                    <div class="card-body">
+                                        <div id="script-description" class="alert alert-info" style="display: none;">
+                                            <!-- Script description will be shown here -->
+                                        </div>
+                                        <div id="script-options">
+                                            <!-- Options will be dynamically added here -->
+                                        </div>
+                                        <div class="mt-2">
+                                            <button type="button" class="btn btn-sm btn-primary" id="build-command">
+                                                <i class="fa fa-wrench"></i> Build Command
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-info" id="view-pod">
+                                                <i class="fa fa-book"></i> View Documentation
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-secondary" id="clear-params">
+                                                <i class="fa fa-times"></i> Clear Parameters
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="form-group mb-3">
                             <label class="form-label">Environment Variables</label>
@@ -294,6 +332,26 @@
           </div>
         </div>
       </form>
+    </div>
+
+    <!-- POD Documentation Viewer Modal -->
+    <div class="modal fade" id="podViewerModal" tabindex="-1" role="dialog" aria-labelledby="pod-viewer-label">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title" id="pod-viewer-label">Script Documentation</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="pod-content" style="white-space: pre-wrap; font-family: monospace; background-color: #f8f9fa; padding: 1rem; border-radius: 0.25rem; max-height: 70vh; overflow-y: auto;"></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fa fa-times"></i> Close
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
 [% MACRO jsinclude BLOCK %]
@@ -359,6 +417,28 @@
             // Add environment variable
             $('#add-env-var').on('click', function() {
                 addEnvironmentVariable();
+            });
+
+            // Script picker
+            $('#browse-scripts').on('click', function() {
+                showScriptPicker();
+            });
+
+            // Build command from parameters
+            $('#build-command').on('click', function() {
+                buildCommandFromParams();
+            });
+
+            // View POD documentation
+            $('#view-pod').on('click', function() {
+                showPodViewer();
+            });
+
+            // Clear parameters
+            $('#clear-params').on('click', function() {
+                $('#script-options').empty();
+                $('#script-params-container').hide();
+                $('#script-description').hide();
             });
 
             // Form submissions
@@ -756,6 +836,214 @@
                     $('#message').fadeOut();
                 }, 3000);
             }
+        }
+
+        // Script Picker Functions
+        let currentScriptData = null;
+
+        function showScriptPicker() {
+            $.ajax({
+                url: '/api/v1/contrib/crontab/scripts',
+                method: 'GET',
+                success: function(data) {
+                    if (data.scripts && data.scripts.length > 0) {
+                        displayScriptPicker(data.scripts);
+                    } else {
+                        showMessage('No scripts found in KOHA_CRON_PATH', 'warning');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showMessage('Failed to load scripts: ' + error, 'danger');
+                }
+            });
+        }
+
+        function displayScriptPicker(scripts) {
+            let pickerHtml = '<div class="list-group mt-2">';
+
+            scripts.forEach(function(script) {
+                let desc = script.description ? '<small class="text-muted">' + script.description + '</small>' : '';
+                pickerHtml += `
+                    <a href="#" class="list-group-item list-group-item-action script-item"
+                       data-script-name="${script.name}"
+                       data-script-path="${script.relative_path}"
+                       data-script-type="${script.type}">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">${script.name}</h6>
+                            <small class="badge bg-secondary">${script.type}</small>
+                        </div>
+                        ${desc}
+                    </a>
+                `;
+            });
+            pickerHtml += '</div>';
+
+            // Show in a Bootstrap modal or directly in the form
+            let modalHtml = `
+                <div class="modal fade" id="scriptPickerModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Select a Script</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+                                ${pickerHtml}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            $('#scriptPickerModal').remove();
+            $('body').append(modalHtml);
+
+            // Bind click handlers
+            $('.script-item').on('click', function(e) {
+                e.preventDefault();
+                let scriptName = $(this).data('script-name');
+                let scriptPath = $(this).data('script-path');
+                let scriptType = $(this).data('script-type');
+
+                selectScript(scriptName, scriptPath, scriptType);
+                $('#scriptPickerModal').modal('hide');
+            });
+
+            $('#scriptPickerModal').modal('show');
+        }
+
+        function selectScript(scriptName, scriptPath, scriptType) {
+            // Set the command input
+            $('#job-command').val(scriptPath);
+
+            // Load script details if it's a Perl script
+            if (scriptType === 'perl') {
+                loadScriptDetails(scriptName);
+            } else {
+                // For shell scripts, just set the path
+                $('#script-params-container').hide();
+            }
+        }
+
+        function loadScriptDetails(scriptName) {
+            $.ajax({
+                url: '/api/v1/contrib/crontab/scripts/details',
+                method: 'GET',
+                data: { name: scriptName },
+                success: function(data) {
+                    currentScriptData = data;
+                    displayScriptOptions(data);
+                },
+                error: function(xhr, status, error) {
+                    showMessage('Failed to load script details: ' + error, 'danger');
+                }
+            });
+        }
+
+        function displayScriptOptions(scriptData) {
+            // Show description
+            if (scriptData.description) {
+                $('#script-description').html('<strong>' + scriptData.name + ':</strong> ' + scriptData.description).show();
+            }
+
+            // Build options UI
+            let optionsHtml = '';
+            if (scriptData.options && scriptData.options.length > 0) {
+                scriptData.options.forEach(function(option) {
+                    let optionId = 'opt-' + option.name.replace(/[^a-zA-Z0-9]/g, '-');
+                    let shortName = option.short_name ? ' (-' + option.short_name + ')' : '';
+
+                    if (option.type === 'boolean') {
+                        // Checkbox for boolean options
+                        optionsHtml += `
+                            <div class="form-check mb-2">
+                                <input class="form-check-input script-option" type="checkbox"
+                                       id="${optionId}"
+                                       data-option-name="${option.name}"
+                                       data-option-type="${option.type}">
+                                <label class="form-check-label" for="${optionId}">
+                                    <code>--${option.name}${shortName}</code>
+                                </label>
+                            </div>
+                        `;
+                    } else {
+                        // Text input for string/integer options
+                        optionsHtml += `
+                            <div class="mb-3">
+                                <label for="${optionId}" class="form-label">
+                                    <code>--${option.name}${shortName}</code>
+                                    ${option.required ? '<span class="text-danger">*</span>' : ''}
+                                </label>
+                                <input type="${option.type === 'integer' ? 'number' : 'text'}"
+                                       class="form-control form-control-sm script-option"
+                                       id="${optionId}"
+                                       data-option-name="${option.name}"
+                                       data-option-type="${option.type}"
+                                       placeholder="${option.type === 'string' ? 'Enter value' : 'Enter number'}">
+                            </div>
+                        `;
+                    }
+                });
+            } else {
+                optionsHtml = '<p class="text-muted">No documented options for this script.</p>';
+            }
+
+            $('#script-options').html(optionsHtml);
+            $('#script-params-container').show();
+        }
+
+        function showPodViewer() {
+            if (!currentScriptData) {
+                showMessage('No script selected', 'warning');
+                return;
+            }
+
+            // Get the formatted usage text from pod2usage
+            let podContent = currentScriptData.usage_text || 'No documentation available.';
+
+            // Set modal title with script name
+            $('#pod-viewer-label').text('Documentation: ' + currentScriptData.name);
+
+            // Display the POD content (preformatted text preserves formatting)
+            $('#pod-content').text(podContent);
+
+            // Show the modal
+            $('#podViewerModal').modal('show');
+        }
+
+        function buildCommandFromParams() {
+            let basePath = $('#job-command').val();
+            if (!basePath) {
+                showMessage('Please select a script first', 'warning');
+                return;
+            }
+
+            let params = [];
+            $('.script-option').each(function() {
+                let $input = $(this);
+                let optionName = $input.data('option-name');
+                let optionType = $input.data('option-type');
+
+                if (optionType === 'boolean') {
+                    if ($input.is(':checked')) {
+                        params.push('--' + optionName);
+                    }
+                } else {
+                    let value = $input.val();
+                    if (value && value.trim() !== '') {
+                        params.push('--' + optionName + '=' + value.trim());
+                    }
+                }
+            });
+
+            let fullCommand = basePath;
+            if (params.length > 0) {
+                fullCommand += ' ' + params.join(' ');
+            }
+
+            $('#job-command').val(fullCommand);
+            showMessage('Command built successfully', 'success');
         }
     </script>
 [% END %]

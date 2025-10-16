@@ -650,5 +650,156 @@
                 }
             }
         }
+    },
+    "/scripts": {
+        "get": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#list_scripts",
+            "operationId": "listCrontabScripts",
+            "tags": [
+                "scripts"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "responses": {
+                "200": {
+                    "description": "List of available scripts",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "scripts": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "string",
+                                            "description": "Script filename"
+                                        },
+                                        "path": {
+                                            "type": "string",
+                                            "description": "Absolute path to script"
+                                        },
+                                        "relative_path": {
+                                            "type": "string",
+                                            "description": "Path relative to KOHA_CRON_PATH"
+                                        },
+                                        "type": {
+                                            "type": "string",
+                                            "description": "Script type (perl or shell)"
+                                        },
+                                        "description": {
+                                            "type": "string",
+                                            "description": "Brief description from POD"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        }
+    },
+    "/scripts/details": {
+        "get": {
+            "x-mojo-to": "Com::PTFSEurope::Crontab::Controller#get_script_details",
+            "operationId": "getCrontabScriptDetails",
+            "tags": [
+                "scripts"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "parameters": [
+                {
+                    "name": "name",
+                    "in": "query",
+                    "description": "Script filename (with extension)",
+                    "required": true,
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Script documentation and options",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Script name"
+                            },
+                            "path": {
+                                "type": "string",
+                                "description": "Script path"
+                            },
+                            "type": {
+                                "type": "string",
+                                "description": "Script type (perl or shell)"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Brief description from POD NAME section"
+                            },
+                            "usage_text": {
+                                "type": "string",
+                                "description": "Complete formatted POD documentation from pod2usage"
+                            },
+                            "options": {
+                                "type": "array",
+                                "description": "Parsed command-line options",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "string",
+                                            "description": "Long option name"
+                                        },
+                                        "short_name": {
+                                            "type": "string",
+                                            "description": "Short option alias"
+                                        },
+                                        "type": {
+                                            "type": "string",
+                                            "description": "Option type (boolean, string, integer)"
+                                        },
+                                        "description": {
+                                            "type": "string",
+                                            "description": "Option description from POD"
+                                        },
+                                        "required": {
+                                            "type": "boolean",
+                                            "description": "Whether option is required"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "401": {
+                    "description": "Authentication required"
+                },
+                "403": {
+                    "description": "Access forbidden"
+                },
+                "404": {
+                    "description": "Script not found"
+                },
+                "500": {
+                    "description": "Internal server error"
+                }
+            }
+        }
     }
 }

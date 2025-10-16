@@ -8,9 +8,12 @@ use POSIX qw(strftime);
 use Try::Tiny;
 use File::Spec;
 use File::Path qw(make_path);
+use File::Find;
 use Data::UUID;
 use Config::Crontab;
 use C4::Context;
+use Pod::Usage;
+use File::Basename;
 
 =head1 NAME
 
@@ -52,21 +55,22 @@ Constructor
 =cut
 
 sub new {
-    my ($class, $args) = @_;
+    my ( $class, $args ) = @_;
 
     my $self = {
-        backup_dir => $args->{backup_dir} || '/tmp/koha-crontab-backups',
+        backup_dir   => $args->{backup_dir}   || '/tmp/koha-crontab-backups',
         lock_timeout => $args->{lock_timeout} || 10,
         backup_retention => $args->{backup_retention} || 10,
-        lockfile => '/tmp/koha-crontab-plugin.lock',
-        uuid_generator => Data::UUID->new(),
+        lockfile         => '/tmp/koha-crontab-plugin.lock',
+        uuid_generator   => Data::UUID->new(),
     };
 
     bless $self, $class;
 
     # Ensure backup directory exists
-    unless (-d $self->{backup_dir}) {
-        make_path($self->{backup_dir}) or die "Cannot create backup directory $self->{backup_dir}: $!";
+    unless ( -d $self->{backup_dir} ) {
+        make_path( $self->{backup_dir} )
+          or die "Cannot create backup directory $self->{backup_dir}: $!";
     }
 
     return $self;
@@ -99,18 +103,20 @@ Safely modify the crontab with file locking, backups, and validation
 =cut
 
 sub safely_modify_crontab {
-    my ($self, $modification_callback) = @_;
+    my ( $self, $modification_callback ) = @_;
 
     # Acquire exclusive lock
     my $lock_fh = $self->_acquire_lock();
     unless ($lock_fh) {
         return {
             success => 0,
-            error => "Could not acquire lock (another operation in progress or timeout)"
+            error   =>
+"Could not acquire lock (another operation in progress or timeout)"
         };
     }
 
     my $result = eval {
+
         # 1. Create backup of current crontab
         my $backup_file = $self->backup_crontab();
         unless ($backup_file) {
@@ -124,7 +130,7 @@ sub safely_modify_crontab {
         }
 
         # 3. Pre-modification validation
-        unless ($self->validate_crontab($ct)) {
+        unless ( $self->validate_crontab($ct) ) {
             die "Pre-modification validation failed\n";
         }
 
@@ -135,31 +141,33 @@ sub safely_modify_crontab {
         }
 
         # 5. Dry-run validation (parse the string we'll write)
-        my $draft = $ct->dump();
+        my $draft   = $ct->dump();
         my $test_ct = Config::Crontab->new();
         $test_ct->parse($draft);
-        unless ($self->validate_crontab($test_ct)) {
+        unless ( $self->validate_crontab($test_ct) ) {
             die "Post-modification validation failed\n";
         }
 
         # 6. Write atomically
-        my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
+        my $cron_file =
+          C4::Context->config('koha_plugin_crontab_cronfile') || undef;
         $ct->file($cron_file) if $cron_file;
         $ct->write();
 
         return {
             success => 1,
-            backup => $backup_file,
+            backup  => $backup_file,
             message => "Crontab modified successfully"
         };
     };
 
     if ($@) {
+
         # Restore from backup on failure
         my $restore_result = $self->restore_crontab();
         $result = {
-            success => 0,
-            error => "Modification failed: $@",
+            success  => 0,
+            error    => "Modification failed: $@",
             restored => $restore_result,
         };
     }
@@ -182,11 +190,13 @@ sub backup_crontab {
     my ($self) = @_;
 
     my $now_string = strftime "%Y-%m-%d_%H-%M-%S", localtime;
-    my $filename = File::Spec->catfile($self->{backup_dir}, "crontab_backup_$now_string");
+    my $filename =
+      File::Spec->catfile( $self->{backup_dir}, "crontab_backup_$now_string" );
 
     try {
         my $ct = Config::Crontab->new();
-        my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
+        my $cron_file =
+          C4::Context->config('koha_plugin_crontab_cronfile') || undef;
         $ct->file($cron_file) if $cron_file;
         $ct->read();
         $ct->write($filename);
@@ -195,7 +205,8 @@ sub backup_crontab {
         $self->_cleanup_old_backups();
 
         return $filename;
-    } catch {
+    }
+    catch {
         warn "Failed to create backup: $_";
         return undef;
     };
@@ -210,18 +221,19 @@ Returns 1 on success, 0 on failure
 =cut
 
 sub restore_crontab {
-    my ($self, $specific_backup) = @_;
+    my ( $self, $specific_backup ) = @_;
 
     my $backup_file;
 
     if ($specific_backup) {
         $backup_file = $specific_backup;
-    } else {
+    }
+    else {
         # Find the most recent backup
         $backup_file = $self->_get_latest_backup();
     }
 
-    unless ($backup_file && -f $backup_file) {
+    unless ( $backup_file && -f $backup_file ) {
         warn "No backup file found to restore";
         return 0;
     }
@@ -230,12 +242,14 @@ sub restore_crontab {
         my $ct = Config::Crontab->new();
         $ct->read($backup_file);
 
-        my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
+        my $cron_file =
+          C4::Context->config('koha_plugin_crontab_cronfile') || undef;
         $ct->file($cron_file) if $cron_file;
         $ct->write();
 
         return 1;
-    } catch {
+    }
+    catch {
         warn "Failed to restore from backup $backup_file: $_";
         return 0;
     };
@@ -252,9 +266,10 @@ Returns an arrayref of hashrefs with 'filename' and 'timestamp' keys
 sub list_backups {
     my ($self) = @_;
 
-    opendir(my $dh, $self->{backup_dir}) or return [];
-    my @backups = grep { /^crontab_backup_/ && -f File::Spec->catfile($self->{backup_dir}, $_) }
-                  readdir($dh);
+    opendir( my $dh, $self->{backup_dir} ) or return [];
+    my @backups = grep {
+        /^crontab_backup_/ && -f File::Spec->catfile( $self->{backup_dir}, $_ )
+    } readdir($dh);
     closedir($dh);
 
     # Sort by date (newest first)
@@ -262,13 +277,14 @@ sub list_backups {
 
     my @result;
     for my $backup (@backups) {
-        my $fullpath = File::Spec->catfile($self->{backup_dir}, $backup);
-        my $mtime = (stat($fullpath))[9];
-        push @result, {
-            filename => $fullpath,
+        my $fullpath = File::Spec->catfile( $self->{backup_dir}, $backup );
+        my $mtime    = ( stat($fullpath) )[9];
+        push @result,
+          {
+            filename  => $fullpath,
             timestamp => $mtime,
-            display => strftime("%Y-%m-%d %H:%M:%S", localtime($mtime)),
-        };
+            display   => strftime( "%Y-%m-%d %H:%M:%S", localtime($mtime) ),
+          };
     }
 
     return \@result;
@@ -285,17 +301,17 @@ Returns hashref with metadata, or undef if not a plugin-managed job
 =cut
 
 sub parse_job_metadata {
-    my ($self, $block) = @_;
+    my ( $self, $block ) = @_;
 
     my %metadata;
-    my @comments = $block->select(-type => 'comment');
+    my @comments = $block->select( -type => 'comment' );
 
     for my $comment (@comments) {
         my $data = $comment->data();
 
         # Parse structured metadata (@key: value format)
-        if ($data =~ /^\s*#\s*\@(\w+(?:-\w+)*):\s*(.+)\s*$/) {
-            my ($key, $value) = ($1, $2);
+        if ( $data =~ /^\s*#\s*\@(\w+(?:-\w+)*):\s*(.+)\s*$/ ) {
+            my ( $key, $value ) = ( $1, $2 );
             $metadata{$key} = $value;
         }
     }
@@ -324,53 +340,56 @@ Create a crontab block with metadata for a job
 =cut
 
 sub create_job_block {
-    my ($self, $job_data) = @_;
+    my ( $self, $job_data ) = @_;
 
-    my $now = strftime("%Y-%m-%d %H:%M:%S", localtime);
+    my $now = strftime( "%Y-%m-%d %H:%M:%S", localtime );
 
     my $block = Config::Crontab::Block->new();
     my @lines;
 
     # Add metadata as comments
-    push @lines, Config::Crontab::Comment->new(
-        -data => "# \@crontab-manager-id: " . $job_data->{id}
-    );
+    push @lines,
+      Config::Crontab::Comment->new(
+        -data => "# \@crontab-manager-id: " . $job_data->{id} );
 
-    push @lines, Config::Crontab::Comment->new(
-        -data => "# \@name: " . $job_data->{name}
-    ) if $job_data->{name};
+    push @lines,
+      Config::Crontab::Comment->new( -data => "# \@name: " . $job_data->{name} )
+      if $job_data->{name};
 
-    push @lines, Config::Crontab::Comment->new(
-        -data => "# \@description: " . $job_data->{description}
-    ) if $job_data->{description};
+    push @lines,
+      Config::Crontab::Comment->new(
+        -data => "# \@description: " . $job_data->{description} )
+      if $job_data->{description};
 
-    push @lines, Config::Crontab::Comment->new(
-        -data => "# \@created: " . ($job_data->{created} || $now)
-    );
+    push @lines,
+      Config::Crontab::Comment->new(
+        -data => "# \@created: " . ( $job_data->{created} || $now ) );
 
-    push @lines, Config::Crontab::Comment->new(
-        -data => "# \@updated: " . ($job_data->{updated} || $now)
-    );
+    push @lines,
+      Config::Crontab::Comment->new(
+        -data => "# \@updated: " . ( $job_data->{updated} || $now ) );
 
-    push @lines, Config::Crontab::Comment->new(
-        -data => "# \@managed-by: koha-crontab-plugin"
-    );
+    push @lines,
+      Config::Crontab::Comment->new(
+        -data => "# \@managed-by: koha-crontab-plugin" );
 
     # Add environment variables if present
-    if ($job_data->{environment} && ref($job_data->{environment}) eq 'HASH') {
-        for my $key (sort keys %{$job_data->{environment}}) {
+    if ( $job_data->{environment} && ref( $job_data->{environment} ) eq 'HASH' )
+    {
+        for my $key ( sort keys %{ $job_data->{environment} } ) {
             my $value = $job_data->{environment}->{$key};
-            push @lines, Config::Crontab::Env->new(
-                -name => $key,
+            push @lines,
+              Config::Crontab::Env->new(
+                -name  => $key,
                 -value => $value
-            );
+              );
         }
     }
 
     # Add the cron entry with active flag based on enabled status
     my $event = Config::Crontab::Event->new(
         -datetime => $job_data->{schedule},
-        -command => $job_data->{command}
+        -command  => $job_data->{command}
     );
 
     # Set active flag (1 = enabled/uncommented, 0 = disabled/commented)
@@ -379,7 +398,7 @@ sub create_job_block {
 
     push @lines, $event;
 
-    $block->lines(\@lines);
+    $block->lines( \@lines );
 
     return $block;
 }
@@ -400,33 +419,37 @@ sub get_plugin_managed_jobs {
 
     my @jobs;
 
-    for my $block ($ct->blocks) {
+    for my $block ( $ct->blocks ) {
         my $metadata = $self->parse_job_metadata($block);
         next unless $metadata;
-        next unless $metadata->{'managed-by'} && $metadata->{'managed-by'} eq 'koha-crontab-plugin';
+        next
+          unless $metadata->{'managed-by'}
+          && $metadata->{'managed-by'} eq 'koha-crontab-plugin';
 
         # Extract the cron event from the block
-        my @events = $block->select(-type => 'event');
+        my @events = $block->select( -type => 'event' );
         next unless @events;
 
-        my $event = $events[0]; # Take first event in block
+        my $event = $events[0];    # Take first event in block
 
         # Extract environment variables
         my %environment;
-        for my $env ($block->select(-type => 'env')) {
-            $environment{$env->name} = $env->value;
+        for my $env ( $block->select( -type => 'env' ) ) {
+            $environment{ $env->name } = $env->value;
         }
 
         my $job = {
-            id => $metadata->{'crontab-manager-id'},
-            name => $metadata->{name} || '',
+            id          => $metadata->{'crontab-manager-id'},
+            name        => $metadata->{name}        || '',
             description => $metadata->{description} || '',
-            schedule => $event->datetime,
-            command => $event->command,
+            schedule    => $event->datetime,
+            command     => $event->command,
             environment => \%environment,
-            created => $metadata->{created} || '',
-            updated => $metadata->{updated} || '',
-            enabled => $event->active ? 1 : 0, # Check active flag (1 = uncommented, 0 = commented)
+            created     => $metadata->{created} || '',
+            updated     => $metadata->{updated} || '',
+            enabled     => $event->active
+            ? 1
+            : 0,    # Check active flag (1 = uncommented, 0 = commented)
         };
 
         push @jobs, $job;
@@ -451,36 +474,38 @@ sub get_all_crontab_entries {
 
     my @entries;
 
-    for my $block ($ct->blocks) {
+    for my $block ( $ct->blocks ) {
         my $metadata = $self->parse_job_metadata($block);
-        my $is_managed = $metadata && $metadata->{'managed-by'} &&
-                        $metadata->{'managed-by'} eq 'koha-crontab-plugin';
+        my $is_managed =
+             $metadata
+          && $metadata->{'managed-by'}
+          && $metadata->{'managed-by'} eq 'koha-crontab-plugin';
 
         # Extract the cron event from the block
-        my @events = $block->select(-type => 'event');
+        my @events = $block->select( -type => 'event' );
         next unless @events;
 
         my $event = $events[0];
 
         # Get any comments for system entries
-        my @comments = $block->select(-type => 'comment');
+        my @comments     = $block->select( -type => 'comment' );
         my @comment_text = map { $_->data } @comments;
 
         my $entry = {
             schedule => $event->datetime,
-            command => $event->command,
-            managed => $is_managed ? 1 : 0,
-            enabled => $event->active ? 1 : 0,
+            command  => $event->command,
+            managed  => $is_managed    ? 1 : 0,
+            enabled  => $event->active ? 1 : 0,
             comments => \@comment_text,
         };
 
         # Add metadata if plugin-managed
         if ($is_managed) {
-            $entry->{id} = $metadata->{'crontab-manager-id'};
-            $entry->{name} = $metadata->{name} || '';
+            $entry->{id}          = $metadata->{'crontab-manager-id'};
+            $entry->{name}        = $metadata->{name}        || '';
             $entry->{description} = $metadata->{description} || '';
-            $entry->{created} = $metadata->{created} || '';
-            $entry->{updated} = $metadata->{updated} || '';
+            $entry->{created}     = $metadata->{created}     || '';
+            $entry->{updated}     = $metadata->{updated}     || '';
         }
 
         push @entries, $entry;
@@ -506,10 +531,10 @@ sub get_global_environment {
     my %env;
 
     # Get global environment variables (not inside blocks)
-    my @lines = $ct->select(-type => 'env');
+    my @lines = $ct->select( -type => 'env' );
     for my $line (@lines) {
         next unless $line && ref($line);
-        $env{$line->name} = $line->value;
+        $env{ $line->name } = $line->value;
     }
 
     return \%env;
@@ -526,7 +551,7 @@ Returns 1 if valid, 0 if invalid
 =cut
 
 sub validate_crontab {
-    my ($self, $ct) = @_;
+    my ( $self, $ct ) = @_;
 
     return 0 unless $ct;
 
@@ -539,20 +564,21 @@ sub validate_crontab {
         $test_ct->parse($dump);
 
         # Validate all events have valid cron syntax
-        for my $block ($ct->blocks) {
-            for my $event ($block->select(-type => 'event')) {
+        for my $block ( $ct->blocks ) {
+            for my $event ( $block->select( -type => 'event' ) ) {
                 my $datetime = $event->datetime;
 
                 # Basic cron syntax validation (5 fields)
                 my @fields = split /\s+/, $datetime;
-                unless (@fields == 5) {
-                    warn "Invalid cron datetime (must have 5 fields): $datetime";
+                unless ( @fields == 5 ) {
+                    warn
+                      "Invalid cron datetime (must have 5 fields): $datetime";
                     return 0;
                 }
 
                 # Validate each field has allowed characters
                 for my $field (@fields) {
-                    unless ($field =~ /^[\d\*\/\-\,]+$/) {
+                    unless ( $field =~ /^[\d\*\/\-\,]+$/ ) {
                         warn "Invalid cron field: $field";
                         return 0;
                     }
@@ -561,7 +587,8 @@ sub validate_crontab {
         }
 
         return 1;
-    } catch {
+    }
+    catch {
         warn "Crontab validation failed: $_";
         return 0;
     };
@@ -592,13 +619,13 @@ Returns the block if found, undef otherwise
 =cut
 
 sub find_job_block {
-    my ($self, $ct, $job_id) = @_;
+    my ( $self, $ct, $job_id ) = @_;
 
-    for my $block ($ct->blocks) {
+    for my $block ( $ct->blocks ) {
         my $metadata = $self->parse_job_metadata($block);
         next unless $metadata;
 
-        if ($metadata->{'crontab-manager-id'} eq $job_id) {
+        if ( $metadata->{'crontab-manager-id'} eq $job_id ) {
             return $block;
         }
     }
@@ -620,7 +647,7 @@ Update an existing job block with new data
 =cut
 
 sub update_job_block {
-    my ($self, $block, $updates) = @_;
+    my ( $self, $block, $updates ) = @_;
 
     # Get existing metadata
     my $metadata = $self->parse_job_metadata($block);
@@ -628,32 +655,32 @@ sub update_job_block {
 
     # Create updated block
     my $job_data = {
-        id => $metadata->{'crontab-manager-id'},
-        name => $updates->{name} // $metadata->{name},
+        id          => $metadata->{'crontab-manager-id'},
+        name        => $updates->{name}        // $metadata->{name},
         description => $updates->{description} // $metadata->{description},
-        schedule => $updates->{schedule} // '',
-        command => $updates->{command} // '',
+        schedule    => $updates->{schedule}    // '',
+        command     => $updates->{command}     // '',
         environment => $updates->{environment},
-        created => $metadata->{created},
-        updated => strftime("%Y-%m-%d %H:%M:%S", localtime),
+        created     => $metadata->{created},
+        updated     => strftime( "%Y-%m-%d %H:%M:%S", localtime ),
     };
 
     # If schedule/command not provided in updates, extract from existing block
-    unless ($job_data->{schedule}) {
-        my @events = $block->select(-type => 'event');
+    unless ( $job_data->{schedule} ) {
+        my @events = $block->select( -type => 'event' );
         $job_data->{schedule} = $events[0]->datetime if @events;
     }
 
-    unless ($job_data->{command}) {
-        my @events = $block->select(-type => 'event');
+    unless ( $job_data->{command} ) {
+        my @events = $block->select( -type => 'event' );
         $job_data->{command} = $events[0]->command if @events;
     }
 
     # Get existing environment if not provided
-    unless ($job_data->{environment}) {
+    unless ( $job_data->{environment} ) {
         my %env;
-        for my $env_var ($block->select(-type => 'env')) {
-            $env{$env_var->name} = $env_var->value;
+        for my $env_var ( $block->select( -type => 'env' ) ) {
+            $env{ $env_var->name } = $env_var->value;
         }
         $job_data->{environment} = \%env if %env;
     }
@@ -662,9 +689,225 @@ sub update_job_block {
     my $new_block = $self->create_job_block($job_data);
 
     # Replace lines in the existing block
-    $block->lines($new_block->lines);
+    $block->lines( $new_block->lines );
 
     return 1;
+}
+
+=head2 get_available_scripts
+
+Get list of available scripts from KOHA_CRON_PATH
+
+    my $scripts = $manager->get_available_scripts();
+
+Returns arrayref of hashrefs with script metadata
+
+=cut
+
+sub get_available_scripts {
+    my ($self) = @_;
+
+    # Get KOHA_CRON_PATH from crontab environment
+    my $ct = $self->_read_crontab();
+    return [] unless $ct;
+
+    my $cron_path;
+    my @env_lines = $ct->select( -type => 'env' );
+    for my $env (@env_lines) {
+        if ( $env->name eq 'KOHA_CRON_PATH' ) {
+            $cron_path = $env->value;
+            last;
+        }
+    }
+
+    return [] unless $cron_path && -d $cron_path;
+
+    my @scripts;
+    find(
+        sub {
+            my $abs_path = $File::Find::name;
+            my $rel_path = $abs_path;
+            $rel_path =~ s/^\Q$cron_path\E//;
+            $rel_path = '$KOHA_CRON_PATH' . $rel_path;
+
+            # Only include .pl and .sh files
+            if ( -f $abs_path
+                && ( $abs_path =~ /\.pl$/ || $abs_path =~ /\.sh$/ ) )
+            {
+                my $type     = $abs_path =~ /\.pl$/ ? 'perl' : 'shell';
+                my $basename = basename($abs_path);
+
+                # Get brief description from POD NAME section for perl scripts
+                my $description = '';
+                if ( $type eq 'perl' ) {
+                    my $doc = $self->parse_script_documentation($abs_path);
+                    $description = $doc->{name_brief} || '';
+                }
+
+                push @scripts,
+                  {
+                    name          => $basename,
+                    path          => $abs_path,
+                    relative_path => $rel_path,
+                    type          => $type,
+                    description   => $description,
+                  };
+            }
+        },
+        $cron_path
+    );
+
+    # Sort by name
+    @scripts = sort { $a->{name} cmp $b->{name} } @scripts;
+
+    return \@scripts;
+}
+
+=head2 parse_script_documentation
+
+Parse POD documentation from a Perl script using Pod::Usage
+
+    my $doc = $manager->parse_script_documentation('/path/to/script.pl');
+
+Returns hashref with: name_brief, usage_text
+
+=cut
+
+sub parse_script_documentation {
+    my ( $self, $script_path ) = @_;
+
+    return {} unless -f $script_path;
+
+    my %doc = (
+        name_brief => '',
+        usage_text => '',
+    );
+
+    # Extract brief description from NAME section
+    try {
+        my $name_output = '';
+        open my $name_fh, '>', \$name_output;
+        pod2usage(
+            -input    => $script_path,
+            -output   => $name_fh,
+            -sections => 'DESCRIPTION',
+            -verbose  => 99,
+            -exitval  => 'NOEXIT'
+        );
+        close $name_fh;
+
+        $doc{name_brief} = $name_output;
+    }
+    catch {
+        # If NAME section fails, that's okay
+    };
+
+    # Extract full usage documentation (verbose level 2 shows all sections)
+    try {
+        my $usage_output = '';
+        open my $usage_fh, '>', \$usage_output;
+        pod2usage(
+            -input   => $script_path,
+            -output  => $usage_fh,
+            -verbose => 1,
+            -exitval => 'NOEXIT'
+        );
+        close $usage_fh;
+
+        $doc{usage_text} = $usage_output;
+    }
+    catch {
+        warn "Failed to extract POD from $script_path: $_";
+        $doc{usage_text} = "No documentation available.\n";
+    };
+
+    return \%doc;
+}
+
+=head2 parse_script_options
+
+Parse command-line options from a Perl script's GetOptions call
+
+    my $options = $manager->parse_script_options('/path/to/script.pl');
+
+Returns arrayref of hashrefs with: name, short_name, type, description, required
+
+=cut
+
+sub parse_script_options {
+    my ( $self, $script_path ) = @_;
+
+    return [] unless -f $script_path;
+
+    # Parse GetOptions from the script itself to get option names and types
+    my @options;
+    open my $fh, '<', $script_path or return [];
+    my $in_getoptions    = 0;
+    my $getoptions_block = '';
+
+    while ( my $line = <$fh> ) {
+        if ( $line =~ /GetOptions\s*\(/i ) {
+            $in_getoptions = 1;
+        }
+
+        if ($in_getoptions) {
+            $getoptions_block .= $line;
+            if ( $line =~ /\)\s*;/ || $line =~ /\|\|\s*pod2usage/ ) {
+                last;
+            }
+        }
+    }
+    close $fh;
+
+    # Parse option specifications from GetOptions block
+    while ( $getoptions_block =~ /'([^']+)'\s*=>/g ) {
+        my $spec = $1;
+        my ( $name, $short_name, $type, $required ) = ( '', '', 'boolean', 0 );
+
+        # Parse spec format: 'name|alias:type'
+        if ( $spec =~ /^([\w-]+)(?:\|(\w+))?(?:([=:])(\w+))?$/ ) {
+            $name       = $1;
+            $short_name = $2 || '';
+            my $modifier  = $3 || '';
+            my $type_code = $4 || '';
+
+            # Determine type
+            if ( $modifier eq '=' ) {
+                $required = 1;
+                if ( $type_code eq 's' ) {
+                    $type = 'string';
+                }
+                elsif ( $type_code eq 'i' ) {
+                    $type = 'integer';
+                }
+                elsif ( $type_code eq 'f' ) {
+                    $type = 'float';
+                }
+            }
+            elsif ( $modifier eq ':' ) {
+                $required = 0;
+                if ( $type_code eq 's' ) {
+                    $type = 'string';
+                }
+                elsif ( $type_code eq 'i' ) {
+                    $type = 'integer';
+                }
+                elsif ( $type_code eq 'f' ) {
+                    $type = 'float';
+                }
+            }
+
+            push @options,
+              {
+                name       => $name,
+                short_name => $short_name,
+                type       => $type,
+                required   => $required,
+              };
+        }
+    }
+
+    return \@options;
 }
 
 #
@@ -680,17 +923,17 @@ sub _acquire_lock {
     };
 
     my $timeout = $self->{lock_timeout};
-    my $locked = 0;
+    my $locked  = 0;
 
     eval {
         local $SIG{ALRM} = sub { die "Lock timeout\n" };
         alarm($timeout);
-        flock($lock_fh, LOCK_EX) or die "Cannot lock: $!";
+        flock( $lock_fh, LOCK_EX ) or die "Cannot lock: $!";
         $locked = 1;
         alarm(0);
     };
 
-    if (!$locked) {
+    if ( !$locked ) {
         close $lock_fh;
         warn "Failed to acquire lock: $@" if $@;
         return undef;
@@ -700,11 +943,11 @@ sub _acquire_lock {
 }
 
 sub _release_lock {
-    my ($self, $lock_fh) = @_;
+    my ( $self, $lock_fh ) = @_;
 
     return unless $lock_fh;
 
-    flock($lock_fh, LOCK_UN);
+    flock( $lock_fh, LOCK_UN );
     close $lock_fh;
 }
 
@@ -713,12 +956,14 @@ sub _read_crontab {
 
     try {
         my $ct = Config::Crontab->new();
-        my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
+        my $cron_file =
+          C4::Context->config('koha_plugin_crontab_cronfile') || undef;
         $ct->file($cron_file) if $cron_file;
         $ct->mode('block');
         $ct->read();
         return $ct;
-    } catch {
+    }
+    catch {
         warn "Failed to read crontab: $_";
         return undef;
     };
@@ -736,14 +981,15 @@ sub _get_latest_backup {
 sub _cleanup_old_backups {
     my ($self) = @_;
 
-    my $backups = $self->list_backups();
+    my $backups   = $self->list_backups();
     my $retention = $self->{backup_retention};
 
     # Remove backups beyond retention limit
-    if (@$backups > $retention) {
-        my @to_remove = @$backups[$retention .. $#$backups];
+    if ( @$backups > $retention ) {
+        my @to_remove = @$backups[ $retention .. $#$backups ];
         for my $backup (@to_remove) {
-            unlink $backup->{filename} or warn "Failed to remove old backup $backup->{filename}: $!";
+            unlink $backup->{filename}
+              or warn "Failed to remove old backup $backup->{filename}: $!";
         }
     }
 }
