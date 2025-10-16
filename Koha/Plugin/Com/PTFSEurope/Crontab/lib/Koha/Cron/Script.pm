@@ -1,4 +1,4 @@
-package Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script;
+package Koha::Cron::Script;
 
 # Script discovery and parsing operations
 
@@ -10,11 +10,11 @@ use Try::Tiny;
 
 =head1 NAME
 
-Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script - Script discovery and parsing
+Koha::Cron::Script - Script discovery and parsing
 
 =head1 SYNOPSIS
 
-    my $script = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script->new({
+    my $script = Koha::Cron::Script->new({
         crontab => $crontab_instance,
     });
 
@@ -34,7 +34,7 @@ POD documentation and GetOptions specifications.
 
 Constructor
 
-    my $script = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script->new({
+    my $script = Koha::Cron::Script->new({
         crontab => $crontab_instance,  # Required: Crontab model instance
     });
 

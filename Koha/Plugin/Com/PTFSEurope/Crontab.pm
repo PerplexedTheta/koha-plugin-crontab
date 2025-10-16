@@ -220,22 +220,27 @@ sub uninstall {
         return 1;
     }
 
-    require Koha::Plugin::Com::PTFSEurope::Crontab::Manager;
-    my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new({
+    require Koha::Cron::File;
+    require Koha::Cron::Job;
+
+    my $crontab = Koha::Cron::File->new({
         backup_dir => $self->mbf_dir . '/backups',
+    });
+    my $job_model = Koha::Cron::Job->new({
+        crontab => $crontab,
     });
 
     # Create final backup before uninstall
-    my $backup_file = $manager->backup_crontab();
+    my $backup_file = $crontab->backup_crontab();
     warn "Created final backup before uninstall: $backup_file" if $backup_file;
 
     # Remove all plugin-managed jobs
-    my $result = $manager->safely_modify_crontab(sub {
+    my $result = $crontab->safely_modify_crontab(sub {
         my ($ct) = @_;
 
         my @blocks_to_remove;
         for my $block ($ct->blocks) {
-            my $metadata = $manager->parse_job_metadata($block);
+            my $metadata = $job_model->parse_job_metadata($block);
             if ($metadata && $metadata->{'managed-by'} &&
                 $metadata->{'managed-by'} eq 'koha-crontab-plugin') {
                 push @blocks_to_remove, $block;

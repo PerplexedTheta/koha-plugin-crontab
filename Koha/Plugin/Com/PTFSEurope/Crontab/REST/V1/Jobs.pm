@@ -8,9 +8,9 @@ use Mojo::Base 'Mojolicious::Controller';
 use C4::Context;
 use C4::Log qw( logaction );
 use Koha::Plugin::Com::PTFSEurope::Crontab;
-use Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab;
-use Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job;
-use Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script;
+use Koha::Cron::File;
+use Koha::Cron::Job;
+use Koha::Cron::Script;
 use POSIX qw(strftime);
 use Try::Tiny;
 
@@ -35,10 +35,10 @@ sub list {
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+        my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
-        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+        my $job_model = Koha::Cron::Job->new(
             { crontab => $crontab }
         );
 
@@ -85,10 +85,10 @@ sub get {
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+        my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
-        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+        my $job_model = Koha::Cron::Job->new(
             { crontab => $crontab }
         );
 
@@ -154,14 +154,14 @@ sub add {
     }
 
     try {
-        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+        my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
-        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+        my $job_model = Koha::Cron::Job->new(
             { crontab => $crontab }
         );
         my $script_model =
-          Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script->new(
+          Koha::Cron::Script->new(
             { crontab => $crontab }
           );
 
@@ -248,14 +248,14 @@ sub update {
     my $body   = $c->req->json;
 
     try {
-        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+        my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
-        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+        my $job_model = Koha::Cron::Job->new(
             { crontab => $crontab }
         );
         my $script_model =
-          Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script->new(
+          Koha::Cron::Script->new(
             { crontab => $crontab }
           );
 
@@ -375,10 +375,10 @@ sub delete {
     my $job_id = $c->validation->param('job_id');
 
     try {
-        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+        my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
-        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+        my $job_model = Koha::Cron::Job->new(
             { crontab => $crontab }
         );
 
@@ -448,10 +448,10 @@ sub enable {
     my $job_id = $c->validation->param('job_id');
 
     try {
-        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+        my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
-        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+        my $job_model = Koha::Cron::Job->new(
             { crontab => $crontab }
         );
 
@@ -523,10 +523,10 @@ sub disable {
     my $job_id = $c->validation->param('job_id');
 
     try {
-        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+        my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
-        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+        my $job_model = Koha::Cron::Job->new(
             { crontab => $crontab }
         );
 
@@ -595,7 +595,7 @@ sub backup {
     my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new;
 
     try {
-        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+        my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
 
@@ -635,10 +635,10 @@ sub list_all {
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+        my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
-        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+        my $job_model = Koha::Cron::Job->new(
             { crontab => $crontab }
         );
 
@@ -690,10 +690,10 @@ sub get_environment {
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+        my $crontab = Koha::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
-        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+        my $job_model = Koha::Cron::Job->new(
             { crontab => $crontab }
         );
 

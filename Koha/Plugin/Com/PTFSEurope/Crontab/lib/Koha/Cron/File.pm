@@ -1,4 +1,4 @@
-package Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab;
+package Koha::Cron::File;
 
 # Core crontab file operations with safety features
 
@@ -13,11 +13,11 @@ use C4::Context;
 
 =head1 NAME
 
-Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab - Safe crontab file operations
+Koha::Cron::File - Safe crontab file operations
 
 =head1 SYNOPSIS
 
-    my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new({
+    my $crontab = Koha::Cron::File->new({
         backup_dir => '/path/to/backups',
         lock_timeout => 10,
     });
@@ -40,7 +40,7 @@ This module handles all crontab file operations with locking, backups, and valid
 
 Constructor
 
-    my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new({
+    my $crontab = Koha::Cron::File->new({
         backup_dir => '/path/to/backups',     # Directory for backup files
         lock_timeout => 10,                    # Lock timeout in seconds (default: 10)
         backup_retention => 10,                # Number of backups to keep (default: 10)
