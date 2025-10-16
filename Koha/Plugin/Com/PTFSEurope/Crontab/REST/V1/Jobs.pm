@@ -8,7 +8,9 @@ use Mojo::Base 'Mojolicious::Controller';
 use C4::Context;
 use C4::Log qw( logaction );
 use Koha::Plugin::Com::PTFSEurope::Crontab;
-use Koha::Plugin::Com::PTFSEurope::Crontab::Manager;
+use Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab;
+use Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job;
+use Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script;
 use POSIX qw(strftime);
 use Try::Tiny;
 
@@ -33,13 +35,14 @@ sub list {
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
+        );
+        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+            { crontab => $crontab }
         );
 
-        my $jobs      = $manager->get_plugin_managed_jobs();
+        my $jobs      = $job_model->get_plugin_managed_jobs();
         my @jobs_data = map {
             {
                 id          => $_->{id},
@@ -82,13 +85,14 @@ sub get {
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
+        );
+        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+            { crontab => $crontab }
         );
 
-        my $jobs = $manager->get_plugin_managed_jobs();
+        my $jobs = $job_model->get_plugin_managed_jobs();
         my ($job) = grep { $_->{id} eq $job_id } @$jobs;
 
         unless ($job) {
@@ -150,14 +154,19 @@ sub add {
     }
 
     try {
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
         );
+        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+            { crontab => $crontab }
+        );
+        my $script_model =
+          Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script->new(
+            { crontab => $crontab }
+          );
 
         # Validate command uses approved script
-        my $validation = $manager->validate_command( $body->{command} );
+        my $validation = $script_model->validate_command( $body->{command} );
         unless ( $validation->{valid} ) {
             return $c->render(
                 status  => 400,
@@ -165,14 +174,14 @@ sub add {
             );
         }
 
-        my $job_id = $manager->generate_job_id();
+        my $job_id = $job_model->generate_job_id();
         my $now    = strftime( "%Y-%m-%d %H:%M:%S", localtime );
 
-        my $result = $manager->safely_modify_crontab(
+        my $result = $crontab->safely_modify_crontab(
             sub {
                 my ($ct) = @_;
 
-                my $block = $manager->create_job_block(
+                my $block = $job_model->create_job_block(
                     {
                         id          => $job_id,
                         name        => $body->{name},
@@ -239,15 +248,20 @@ sub update {
     my $body   = $c->req->json;
 
     try {
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
         );
+        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+            { crontab => $crontab }
+        );
+        my $script_model =
+          Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script->new(
+            { crontab => $crontab }
+          );
 
         # Validate command if it's being updated
         if ( defined $body->{command} ) {
-            my $validation = $manager->validate_command( $body->{command} );
+            my $validation = $script_model->validate_command( $body->{command} );
             unless ( $validation->{valid} ) {
                 return $c->render(
                     status  => 400,
@@ -258,11 +272,11 @@ sub update {
 
         my $updated_job;
 
-        my $result = $manager->safely_modify_crontab(
+        my $result = $crontab->safely_modify_crontab(
             sub {
                 my ($ct) = @_;
 
-                my $block = $manager->find_job_block( $ct, $job_id );
+                my $block = $job_model->find_job_block( $ct, $job_id );
                 unless ($block) {
                     die "Job not found";
                 }
@@ -279,10 +293,10 @@ sub update {
                 $updates{environment} = $body->{environment}
                   if defined $body->{environment};
 
-                $manager->update_job_block( $block, \%updates );
+                $job_model->update_job_block( $block, \%updates );
 
                 # Get updated job data for response
-                my $metadata = $manager->parse_job_metadata($block);
+                my $metadata = $job_model->parse_job_metadata($block);
                 my @events   = $block->select( -type => 'event' );
                 my %env;
                 for my $env_var ( $block->select( -type => 'env' ) ) {
@@ -361,25 +375,26 @@ sub delete {
     my $job_id = $c->validation->param('job_id');
 
     try {
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
+        );
+        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+            { crontab => $crontab }
         );
 
         my $job_name;
 
-        my $result = $manager->safely_modify_crontab(
+        my $result = $crontab->safely_modify_crontab(
             sub {
                 my ($ct) = @_;
 
-                my $block = $manager->find_job_block( $ct, $job_id );
+                my $block = $job_model->find_job_block( $ct, $job_id );
                 unless ($block) {
                     die "Job not found";
                 }
 
                 # Get job name before deletion for logging
-                my $metadata = $manager->parse_job_metadata($block);
+                my $metadata = $job_model->parse_job_metadata($block);
                 $job_name = $metadata->{name} || '';
 
                 # Remove the block from crontab
@@ -433,24 +448,25 @@ sub enable {
     my $job_id = $c->validation->param('job_id');
 
     try {
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
+        );
+        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+            { crontab => $crontab }
         );
 
         my $job_name;
 
-        my $result = $manager->safely_modify_crontab(
+        my $result = $crontab->safely_modify_crontab(
             sub {
                 my ($ct) = @_;
 
-                my $block = $manager->find_job_block( $ct, $job_id );
+                my $block = $job_model->find_job_block( $ct, $job_id );
                 unless ($block) {
                     die "Job not found";
                 }
 
-                my $metadata = $manager->parse_job_metadata($block);
+                my $metadata = $job_model->parse_job_metadata($block);
                 $job_name = $metadata->{name} || '';
 
                 # Enable event by setting active flag
@@ -507,24 +523,25 @@ sub disable {
     my $job_id = $c->validation->param('job_id');
 
     try {
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
+        );
+        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+            { crontab => $crontab }
         );
 
         my $job_name;
 
-        my $result = $manager->safely_modify_crontab(
+        my $result = $crontab->safely_modify_crontab(
             sub {
                 my ($ct) = @_;
 
-                my $block = $manager->find_job_block( $ct, $job_id );
+                my $block = $job_model->find_job_block( $ct, $job_id );
                 unless ($block) {
                     die "Job not found";
                 }
 
-                my $metadata = $manager->parse_job_metadata($block);
+                my $metadata = $job_model->parse_job_metadata($block);
                 $job_name = $metadata->{name} || '';
 
                 # Disable event by setting active flag to 0
@@ -578,14 +595,12 @@ sub backup {
     my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new;
 
     try {
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
         );
 
         # This creates a crontab backup file
-        my $backup_file = $manager->backup_crontab();
+        my $backup_file = $crontab->backup_crontab();
 
         unless ($backup_file) {
             die "Failed to create backup";
@@ -620,13 +635,14 @@ sub list_all {
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
+        );
+        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+            { crontab => $crontab }
         );
 
-        my $entries      = $manager->get_all_crontab_entries();
+        my $entries      = $job_model->get_all_crontab_entries();
         my @entries_data = map {
             my $entry = {
                 schedule => $_->{schedule},
@@ -674,13 +690,14 @@ sub get_environment {
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
+        );
+        my $job_model = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Job->new(
+            { crontab => $crontab }
         );
 
-        my $env = $manager->get_global_environment();
+        my $env = $job_model->get_global_environment();
 
         return $c->render(
             status  => 200,

@@ -7,7 +7,8 @@ use Mojo::Base 'Mojolicious::Controller';
 
 use C4::Context;
 use Koha::Plugin::Com::PTFSEurope::Crontab;
-use Koha::Plugin::Com::PTFSEurope::Crontab::Manager;
+use Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab;
+use Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script;
 use Try::Tiny;
 
 =head1 NAME
@@ -31,13 +32,15 @@ sub list {
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
         );
+        my $script_model =
+          Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script->new(
+            { crontab => $crontab }
+          );
 
-        my $scripts = $manager->get_available_scripts();
+        my $scripts = $script_model->get_available_scripts();
 
         return $c->render(
             status  => 200,
@@ -67,14 +70,16 @@ sub get {
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
+        my $crontab = Koha::Plugin::Com::PTFSEurope::Crontab::Model::Crontab->new(
+            { backup_dir => $plugin->mbf_dir . '/backups', }
         );
+        my $script_model =
+          Koha::Plugin::Com::PTFSEurope::Crontab::Model::Script->new(
+            { crontab => $crontab }
+          );
 
         # Get all scripts and find the requested one
-        my $scripts = $manager->get_available_scripts();
+        my $scripts = $script_model->get_available_scripts();
         my ($script) = grep { $_->{name} eq $script_name } @$scripts;
 
         unless ($script) {
@@ -85,8 +90,8 @@ sub get {
         }
 
         # Parse documentation and options
-        my $doc     = $manager->parse_script_documentation( $script->{path} );
-        my $options = $manager->parse_script_options( $script->{path} );
+        my $doc     = $script_model->parse_script_documentation( $script->{path} );
+        my $options = $script_model->parse_script_options( $script->{path} );
 
         return $c->render(
             status  => 200,
