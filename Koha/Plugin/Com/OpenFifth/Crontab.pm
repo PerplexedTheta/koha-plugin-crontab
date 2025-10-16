@@ -8,6 +8,7 @@ use base qw(Koha::Plugins::Base);
 use POSIX qw(strftime);
 use Module::Metadata;
 use JSON;
+use Config::Crontab;
 
 use C4::Context;
 
@@ -115,13 +116,6 @@ sub configure {
 sub install() {
     my ( $self, $args ) = @_;
 
-    # Check if Config::Crontab is available (required for cron management)
-    unless ( $self->_load_config_crontab() ) {
-        warn "Config::Crontab not available - crontab management will not be available";
-        warn "Please install libconfig-crontab-perl package or Config::Crontab CPAN module";
-        return 0;
-    }
-
     # Ensure backup directory exists
     my $backup_dir = $self->mbf_dir . '/backups';
     unless (-d $backup_dir) {
@@ -145,12 +139,6 @@ sub enable {
 
     # Call parent enable method
     $self->SUPER::enable();
-
-    # Ensure Config::Crontab is loaded
-    unless ( $self->_load_config_crontab() ) {
-        warn "Config::Crontab not available - cannot enable crontab management";
-        return;
-    }
 
     # In crontab-primary model, jobs are added individually via the API
     # No centralized manager script needed
@@ -191,11 +179,6 @@ sub disable {
     # or just leave them (they won't be editable via the UI when plugin is disabled)
     # For now, we'll leave jobs in place and just create a backup
 
-    unless ( $self->_load_config_crontab() ) {
-        warn "Config::Crontab not available during disable";
-        return $self;
-    }
-
     # Create a backup on disable
     my $path       = $self->mbf_dir . '/backups/';
     my $now_string = strftime "%F_%H-%M-%S", localtime;
@@ -217,11 +200,6 @@ sub uninstall {
     my ( $self ) = @_;
 
     # Remove all plugin-managed jobs from crontab
-    unless ( $self->_load_config_crontab() ) {
-        warn "Config::Crontab not available during uninstall";
-        return 1;
-    }
-
     require Koha::Cron::File;
     require Koha::Cron::Job;
 
@@ -263,14 +241,6 @@ sub uninstall {
     }
 
     return 1;
-}
-
-
-sub _load_config_crontab {
-    my ( $self ) = @_;
-
-    eval { require Config::Crontab; };
-    return !$@;
 }
 
 1;
