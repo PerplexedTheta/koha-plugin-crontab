@@ -242,12 +242,12 @@
                         <div class="form-group mb-3">
                             <label for="job-command" class="form-label">Command *</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" id="job-command" required placeholder="/usr/local/bin/my-script.sh">
+                                <input type="text" class="form-control" id="job-command" required placeholder="Select a script from browser" readonly>
                                 <button class="btn btn-outline-secondary" type="button" id="browse-scripts">
                                     <i class="fa fa-search"></i> Browse Scripts
                                 </button>
                             </div>
-                            <small class="form-text text-muted">Full path to the command or script to execute, or browse available scripts</small>
+                            <small class="form-text text-muted">Select a script from the browser and use the parameter builder to construct the command</small>
                         </div>
 
                         <!-- Script Parameter Builder (collapsible) -->
@@ -295,6 +295,7 @@
             </div>
             <div class="modal-footer">
                         <input type="hidden" id="job-id">
+                        <input type="hidden" id="base-script-path">
                         <button type="submit" class="btn btn-primary">
                             <i class="fa fa-check"></i> Save Job
                         </button>
@@ -436,9 +437,7 @@
 
             // Clear parameters
             $('#clear-params').on('click', function() {
-                $('#script-options').empty();
-                $('#script-params-container').hide();
-                $('#script-description').hide();
+                clearScriptParameters();
             });
 
             // Form submissions
@@ -580,6 +579,9 @@
                     $('#job-command').val(job.command);
                     $('#job-enabled').val(job.enabled ? '1' : '0');
 
+                    // Try to parse command to extract base script
+                    tryMatchCommandToScript(job.command);
+
                     // Clear and populate environment variables
                     $('#environment-container').empty();
                     if (job.environment && Object.keys(job.environment).length > 0) {
@@ -594,9 +596,49 @@
                 });
         }
 
+        function tryMatchCommandToScript(command) {
+            // Extract the script path (everything before first space or entire string)
+            let parts = command.split(/\s+/);
+            let scriptPath = parts[0];
+
+            // Try to load all scripts and find a match
+            $.ajax({
+                url: '/api/v1/contrib/crontab/scripts',
+                method: 'GET',
+                success: function(data) {
+                    if (data.scripts) {
+                        let matchedScript = data.scripts.find(s => s.relative_path === scriptPath);
+                        if (matchedScript) {
+                            $('#base-script-path').val(scriptPath);
+                            // Don't automatically load parameters when editing
+                            // User can use "Browse Scripts" if they want to modify
+                        }
+                    }
+                },
+                error: function() {
+                    // If we can't load scripts or match, that's ok
+                    // The command validation will handle this on save
+                }
+            });
+        }
+
         function clearJobForm() {
             $('#jobForm')[0].reset();
             $('#environment-container').empty();
+            $('#base-script-path').val('');
+            $('#script-params-container').hide();
+            $('#script-description').hide();
+            $('#script-options').empty();
+            currentScriptData = null;
+        }
+
+        function clearScriptParameters() {
+            // Clear parameter inputs but keep the base script
+            $('#script-options').empty();
+            let basePath = $('#base-script-path').val();
+            if (basePath) {
+                $('#job-command').val(basePath);
+            }
         }
 
         function addEnvironmentVariable(key = '', value = '') {
@@ -914,8 +956,9 @@
         }
 
         function selectScript(scriptName, scriptPath, scriptType) {
-            // Set the command input
+            // Set the command input and track base path
             $('#job-command').val(scriptPath);
+            $('#base-script-path').val(scriptPath);
 
             // Load script details if it's a Perl script
             if (scriptType === 'perl') {
@@ -923,6 +966,7 @@
             } else {
                 // For shell scripts, just set the path
                 $('#script-params-container').hide();
+                currentScriptData = null;
             }
         }
 
@@ -1013,7 +1057,7 @@
         }
 
         function buildCommandFromParams() {
-            let basePath = $('#job-command').val();
+            let basePath = $('#base-script-path').val();
             if (!basePath) {
                 showMessage('Please select a script first', 'warning');
                 return;

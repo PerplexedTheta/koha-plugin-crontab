@@ -107,7 +107,7 @@
                             },
                             "command": {
                                 "type": "string",
-                                "description": "Command to execute"
+                                "description": "Command to execute. Must use a script from the approved scripts list (discoverable via /scripts endpoint). Script path should use $KOHA_CRON_PATH prefix."
                             },
                             "enabled": {
                                 "type": "boolean",
@@ -295,7 +295,7 @@
                             },
                             "command": {
                                 "type": "string",
-                                "description": "Command to execute"
+                                "description": "Command to execute. Must use a script from the approved scripts list (discoverable via /scripts endpoint). Script path should use $KOHA_CRON_PATH prefix."
                             },
                             "enabled": {
                                 "type": "boolean",

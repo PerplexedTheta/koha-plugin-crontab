@@ -910,6 +910,51 @@ sub parse_script_options {
     return \@options;
 }
 
+=head2 validate_command
+
+Validate that a command uses an approved script from the available scripts list
+
+    my $result = $manager->validate_command($command);
+
+Returns hashref with: valid => 1/0, error => string (if invalid), script => matched script hashref (if valid)
+
+=cut
+
+sub validate_command {
+    my ( $self, $command ) = @_;
+
+    return { valid => 0, error => "Command is required" } unless $command;
+
+    # Extract the script path (first token before any parameters)
+    my @parts = split /\s+/, $command;
+    my $script_path = $parts[0];
+
+    return { valid => 0, error => "Empty command" } unless $script_path;
+
+    # Get list of available scripts
+    my $available_scripts = $self->get_available_scripts();
+
+    # Try to match against available scripts
+    my $matched_script;
+    for my $script (@$available_scripts) {
+        if ( $script->{relative_path} eq $script_path ) {
+            $matched_script = $script;
+            last;
+        }
+    }
+
+    unless ($matched_script) {
+        return {
+            valid => 0,
+            error =>
+"Command must use a script from the approved list. Use the script browser to select a valid script. Provided: $script_path"
+        };
+    }
+
+    # Command is valid
+    return { valid => 1, script => $matched_script };
+}
+
 #
 # Private methods
 #

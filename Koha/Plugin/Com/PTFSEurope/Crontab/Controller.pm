@@ -152,6 +152,15 @@ sub add {
             }
         );
 
+        # Validate command uses approved script
+        my $validation = $manager->validate_command( $body->{command} );
+        unless ( $validation->{valid} ) {
+            return $c->render(
+                status  => 400,
+                openapi => { error => $validation->{error} }
+            );
+        }
+
         my $job_id = $manager->generate_job_id();
         my $now    = strftime( "%Y-%m-%d %H:%M:%S", localtime );
 
@@ -231,6 +240,17 @@ sub update {
                 backup_dir => $plugin->mbf_dir . '/backups',
             }
         );
+
+        # Validate command if it's being updated
+        if ( defined $body->{command} ) {
+            my $validation = $manager->validate_command( $body->{command} );
+            unless ( $validation->{valid} ) {
+                return $c->render(
+                    status  => 400,
+                    openapi => { error => $validation->{error} }
+                );
+            }
+        }
 
         my $updated_job;
 
