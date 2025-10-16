@@ -1,6 +1,6 @@
 use utf8;
 
-package Koha::Plugin::Com::PTFSEurope::Crontab::Controller;
+package Koha::Plugin::Com::PTFSEurope::Crontab::REST::V1::Jobs;
 
 use Modern::Perl;
 use Mojo::Base 'Mojolicious::Controller';
@@ -11,6 +11,10 @@ use Koha::Plugin::Com::PTFSEurope::Crontab;
 use Koha::Plugin::Com::PTFSEurope::Crontab::Manager;
 use POSIX qw(strftime);
 use Try::Tiny;
+
+=head1 NAME
+
+Koha::Plugin::Com::PTFSEurope::Crontab::REST::V1::Jobs
 
 =head1 API
 
@@ -25,7 +29,7 @@ List all cron jobs
 sub list {
     my $c = shift->openapi->valid_input or return;
 
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
+    if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
@@ -72,7 +76,7 @@ Get a specific cron job
 sub get {
     my $c = shift->openapi->valid_input or return;
 
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
+    if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     my $job_id = $c->validation->param('job_id');
 
@@ -128,7 +132,7 @@ Create a new cron job
 sub add {
     my $c = shift->openapi->valid_input or return;
 
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
+    if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
@@ -226,7 +230,7 @@ Update an existing cron job
 sub update {
     my $c = shift->openapi->valid_input or return;
 
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
+    if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
@@ -349,7 +353,7 @@ Delete a cron job
 sub delete {
     my $c = shift->openapi->valid_input or return;
 
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
+    if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
@@ -421,7 +425,7 @@ Enable a cron job
 sub enable {
     my $c = shift->openapi->valid_input or return;
 
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
+    if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
@@ -495,7 +499,7 @@ Disable a cron job
 sub disable {
     my $c = shift->openapi->valid_input or return;
 
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
+    if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
     my $logging = $plugin->retrieve_data('enable_logging') // 1;
@@ -569,7 +573,7 @@ Create a backup of current job configuration
 sub backup {
     my $c = shift->openapi->valid_input or return;
 
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
+    if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     my $plugin = Koha::Plugin::Com::PTFSEurope::Crontab->new;
 
@@ -612,7 +616,7 @@ List all crontab entries (both plugin-managed and system jobs)
 sub list_all {
     my $c = shift->openapi->valid_input or return;
 
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
+    if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
@@ -666,7 +670,7 @@ Get global environment variables from the crontab
 sub get_environment {
     my $c = shift->openapi->valid_input or return;
 
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
+    if ( my $r = _check_user_allowlist($c) ) { return $r; }
 
     try {
         my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
@@ -691,97 +695,15 @@ sub get_environment {
     };
 }
 
-=head3 list_scripts
+=head2 Internal Methods
 
-List all available scripts from KOHA_CRON_PATH
+=head3 _check_user_allowlist
 
-=cut
-
-sub list_scripts {
-    my $c = shift->openapi->valid_input or return;
-
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
-
-    try {
-        my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
-        );
-
-        my $scripts = $manager->get_available_scripts();
-
-        return $c->render(
-            status  => 200,
-            openapi => { scripts => $scripts }
-        );
-    }
-    catch {
-        return $c->render(
-            status  => 500,
-            openapi => { error => "Failed to fetch scripts: $_" }
-        );
-    };
-}
-
-=head3 get_script_details
-
-Get detailed documentation and options for a specific script
+Check if the current user is authorized to use the plugin
 
 =cut
 
-sub get_script_details {
-    my $c = shift->openapi->valid_input or return;
-
-    if ( my $r = check_user_allowlist($c) ) { return $r; }
-
-    my $script_name = $c->validation->param('name');
-
-    try {
-        my $plugin  = Koha::Plugin::Com::PTFSEurope::Crontab->new( {} );
-        my $manager = Koha::Plugin::Com::PTFSEurope::Crontab::Manager->new(
-            {
-                backup_dir => $plugin->mbf_dir . '/backups',
-            }
-        );
-
-        # Get all scripts and find the requested one
-        my $scripts = $manager->get_available_scripts();
-        my ($script) = grep { $_->{name} eq $script_name } @$scripts;
-
-        unless ($script) {
-            return $c->render(
-                status  => 404,
-                openapi => { error => "Script not found" }
-            );
-        }
-
-        # Parse documentation and options
-        my $doc     = $manager->parse_script_documentation( $script->{path} );
-        my $options = $manager->parse_script_options( $script->{path} );
-
-        return $c->render(
-            status  => 200,
-            openapi => {
-                name        => $script->{name},
-                path        => $script->{relative_path},
-                type        => $script->{type},
-                description => $doc->{name_brief} || '',
-                usage_text  => $doc->{usage_text} || '',
-                options     => $options,
-            }
-        );
-    }
-    catch {
-        return $c->render(
-            status  => 500,
-            openapi => { error => "Failed to fetch script details: $_" }
-        );
-    };
-}
-
-sub check_user_allowlist {
+sub _check_user_allowlist {
     my ($c) = @_;
 
     # Check if user is logged in
