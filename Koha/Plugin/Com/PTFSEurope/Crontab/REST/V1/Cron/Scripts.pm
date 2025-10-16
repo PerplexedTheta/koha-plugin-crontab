@@ -1,6 +1,6 @@
 use utf8;
 
-package Koha::Plugin::Com::PTFSEurope::Crontab::REST::V1::Scripts;
+package Koha::Plugin::Com::PTFSEurope::Crontab::REST::V1::Cron::Scripts;
 
 use Modern::Perl;
 use Mojo::Base 'Mojolicious::Controller';
@@ -13,7 +13,7 @@ use Try::Tiny;
 
 =head1 NAME
 
-Koha::Plugin::Com::PTFSEurope::Crontab::REST::V1::Scripts
+Koha::Plugin::Com::PTFSEurope::Crontab::REST::V1::Cron::Scripts
 
 =head1 API
 
