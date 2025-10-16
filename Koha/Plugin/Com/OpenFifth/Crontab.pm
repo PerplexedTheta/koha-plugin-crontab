@@ -18,14 +18,16 @@ BEGIN {
 }
 
 
-our $VERSION  = "{VERSION}";
+our $VERSION         = '0.0.2';
+our $MINIMUM_VERSION = "22.11.00.000";
+
 our $metadata = {
     name            => 'Crontab',
     author          => 'Martin Renvoize',
     description     => 'Script scheduling',
     date_authored   => '2023-04-25',
-    date_updated    => "1970-01-01",
-    minimum_version => '22.1100000',
+    date_updated    => '2025-10-16',
+    minimum_version => $MINIMUM_VERSION,
     maximum_version => undef,
     version         => $VERSION,
 };
