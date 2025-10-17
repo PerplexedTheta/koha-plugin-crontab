@@ -3,21 +3,37 @@ use utf8;
 package Koha::Plugin::Com::OpenFifth::Crontab;
 
 use Modern::Perl;
+
+## Set up persistent warning filter for bundled dependencies
+## This must be done before BEGIN to catch all warnings
+$SIG{__WARN__} = sub {
+    my $msg = shift;
+    ## Suppress redefinition warnings from bundled Config::Crontab
+    ## These warnings occur when install_plugins.pl loads plugins multiple times
+    ## with nocache => 1, forcing module recompilation
+    return if $msg =~ /(?:Subroutine|Constant subroutine) .* redefined at .*Config\/Crontab\.pm/;
+    ## Pass through all other warnings
+    CORE::warn($msg);
+};
+
+BEGIN {
+    use Module::Metadata;
+    my $path = Module::Metadata->find_module_by_name(__PACKAGE__);
+    $path =~ s{[.]pm$}{/lib}xms;
+    unless ( eval { require Config::Crontab; 1;  } ) {
+        unshift @INC, $path;
+    }
+
+    require Config::Crontab;
+    Config::Crontab->import();
+}
+
 use base qw(Koha::Plugins::Base);
 
 use POSIX qw(strftime);
-use Module::Metadata;
 use JSON;
-use Config::Crontab;
 
 use C4::Context;
-
-BEGIN {
-    my $path = Module::Metadata->find_module_by_name(__PACKAGE__);
-    $path =~ s{[.]pm$}{/lib}xms;
-    unshift @INC, $path;
-}
-
 
 our $VERSION         = '0.0.2';
 our $MINIMUM_VERSION = "22.11.00.000";
@@ -200,13 +216,13 @@ sub uninstall {
     my ( $self ) = @_;
 
     # Remove all plugin-managed jobs from crontab
-    require Koha::Cron::File;
-    require Koha::Cron::Job;
+    require Koha::Plugin::Com::OpenFifth::Crontab::Cron::File;
+    require Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job;
 
-    my $crontab = Koha::Cron::File->new({
+    my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new({
         backup_dir => $self->mbf_dir . '/backups',
     });
-    my $job_model = Koha::Cron::Job->new({
+    my $job_model = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new({
         crontab => $crontab,
     });
 

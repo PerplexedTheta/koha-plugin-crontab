@@ -1,4 +1,4 @@
-package Koha::Cron::Script;
+package Koha::Plugin::Com::OpenFifth::Crontab::Cron::Script;
 
 # Script discovery and parsing operations
 
@@ -10,11 +10,11 @@ use Try::Tiny;
 
 =head1 NAME
 
-Koha::Cron::Script - Script discovery and parsing
+Koha::Plugin::Com::OpenFifth::Crontab::Cron::Script - Script discovery and parsing
 
 =head1 SYNOPSIS
 
-    my $script = Koha::Cron::Script->new({
+    my $script = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Script->new({
         crontab => $crontab_instance,
     });
 
@@ -34,7 +34,7 @@ POD documentation and GetOptions specifications.
 
 Constructor
 
-    my $script = Koha::Cron::Script->new({
+    my $script = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Script->new({
         crontab => $crontab_instance,  # Required: Crontab model instance
     });
 

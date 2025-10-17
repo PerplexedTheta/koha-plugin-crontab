@@ -7,8 +7,8 @@ use Mojo::Base 'Mojolicious::Controller';
 
 use C4::Context;
 use Koha::Plugin::Com::OpenFifth::Crontab;
-use Koha::Cron::File;
-use Koha::Cron::Script;
+use Koha::Plugin::Com::OpenFifth::Crontab::Cron::File;
+use Koha::Plugin::Com::OpenFifth::Crontab::Cron::Script;
 use Try::Tiny;
 
 =head1 NAME
@@ -32,11 +32,11 @@ sub list {
 
     try {
         my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
-        my $crontab = Koha::Cron::File->new(
+        my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
         my $script_model =
-          Koha::Cron::Script->new(
+          Koha::Plugin::Com::OpenFifth::Crontab::Cron::Script->new(
             { crontab => $crontab }
           );
 
@@ -70,11 +70,11 @@ sub get {
 
     try {
         my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
-        my $crontab = Koha::Cron::File->new(
+        my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
             { backup_dir => $plugin->mbf_dir . '/backups', }
         );
         my $script_model =
-          Koha::Cron::Script->new(
+          Koha::Plugin::Com::OpenFifth::Crontab::Cron::Script->new(
             { crontab => $crontab }
           );
 

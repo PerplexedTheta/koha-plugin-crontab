@@ -1,4 +1,4 @@
-package Koha::Cron::Job;
+package Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job;
 
 # Job management operations
 
@@ -9,11 +9,11 @@ use Config::Crontab;
 
 =head1 NAME
 
-Koha::Cron::Job - Job management operations
+Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job - Job management operations
 
 =head1 SYNOPSIS
 
-    my $job = Koha::Cron::Job->new({
+    my $job = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new({
         crontab => $crontab_instance,
     });
 
@@ -33,7 +33,7 @@ listing, and modification of cron jobs.
 
 Constructor
 
-    my $job = Koha::Cron::Job->new({
+    my $job = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new({
         crontab => $crontab_instance,  # Required: Crontab model instance
     });
 

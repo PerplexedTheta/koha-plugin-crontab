@@ -1,4 +1,4 @@
-package Koha::Cron::File;
+package Koha::Plugin::Com::OpenFifth::Crontab::Cron::File;
 
 # Core crontab file operations with safety features
 
@@ -13,11 +13,11 @@ use C4::Context;
 
 =head1 NAME
 
-Koha::Cron::File - Safe crontab file operations
+Koha::Plugin::Com::OpenFifth::Crontab::Cron::File - Safe crontab file operations
 
 =head1 SYNOPSIS
 
-    my $crontab = Koha::Cron::File->new({
+    my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new({
         backup_dir => '/path/to/backups',
         lock_timeout => 10,
     });
@@ -40,7 +40,7 @@ This module handles all crontab file operations with locking, backups, and valid
 
 Constructor
 
-    my $crontab = Koha::Cron::File->new({
+    my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new({
         backup_dir => '/path/to/backups',     # Directory for backup files
         lock_timeout => 10,                    # Lock timeout in seconds (default: 10)
         backup_retention => 10,                # Number of backups to keep (default: 10)
