@@ -3,8 +3,8 @@
     "module": "Koha::Plugin::Com::OpenFifth::Crontab",
     "pm_path": "Koha/Plugin/Com/OpenFifth/Crontab.pm"
   },
-  "version": "0.0.2",
-  "previous_version": "0.0.0",
+  "version": "1.0.0",
+  "previous_version": "0.0.2",
   "scripts": {
     "version:patch": "node increment_version.js patch | cat",
     "version:minor": "node increment_version.js minor | cat",
