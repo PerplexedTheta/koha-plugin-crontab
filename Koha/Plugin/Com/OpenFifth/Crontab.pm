@@ -115,6 +115,7 @@ sub configure {
         $template->param(
             enable_logging   => $self->retrieve_data('enable_logging'),
             user_allowlist   => $self->retrieve_data('user_allowlist'),
+            script_allowlist => $self->retrieve_data('script_allowlist'),
             backup_retention => $self->retrieve_data('backup_retention') || 10,
         );
 
@@ -128,6 +129,7 @@ sub configure {
             {
                 enable_logging   => $cgi->param('enable_logging'),
                 user_allowlist   => $cgi->param('user_allowlist'),
+                script_allowlist => $cgi->param('script_allowlist'),
                 backup_retention => $backup_retention,
             }
         );

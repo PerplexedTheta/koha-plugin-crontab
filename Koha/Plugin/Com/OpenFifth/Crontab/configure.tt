@@ -82,6 +82,15 @@
                                         <br/><strong>Note:</strong> Superlibrarians always have access regardless of this setting.
                                     </div>
                                 </li>
+                                <li>
+                                    <label for="script_picker">Script allowlist: </label>
+                                    <select name="script_picker" id="script_picker" multiple="multiple"></select>
+                                    <input type="hidden" name="script_allowlist" id="script_allowlist" value="[% script_allowlist | html %]" />
+                                    <div class="hint">
+                                        Search and select scripts to allow users to schedule. Leave empty to allow all scripts from KOHA_CRON_PATH.
+                                        <br/><strong>Note:</strong> You can also type directory prefixes (e.g., <code>batch/</code>) to allow all scripts in that directory.
+                                    </div>
+                                </li>
                             </ol>
                         </fieldset>
 
@@ -189,13 +198,109 @@
                     });
                 }
 
-                // Update hidden field on form submit
+                // Initialize script allowlist select2
+                let allScripts = [];
+
+                // Load all available scripts (with bypass_filter=1 to see all scripts for configuration)
+                $.ajax({
+                    url: '/api/v1/contrib/crontab/scripts?bypass_filter=1',
+                    method: 'GET',
+                    success: function(data) {
+                        if (data.scripts) {
+                            allScripts = data.scripts;
+                            initializeScriptPicker();
+                        }
+                    },
+                    error: function() {
+                        console.error('Failed to load scripts');
+                    }
+                });
+
+                function initializeScriptPicker() {
+                    $("#script_picker").select2({
+                        width: "75%",
+                        multiple: true,
+                        allowClear: true,
+                        tags: true, // Allow custom entries like "batch/" for directory prefixes
+                        data: allScripts.map(function(script) {
+                            return {
+                                id: script.relative_path.replace(/^\$KOHA_CRON_PATH\/?/, ''),
+                                text: script.name,
+                                description: script.description,
+                                path: script.relative_path.replace(/^\$KOHA_CRON_PATH\/?/, ''),
+                                type: script.type
+                            };
+                        }),
+                        templateResult: function(script) {
+                            if (!script.id) {
+                                return script.text;
+                            }
+
+                            let $script = $("<div></div>");
+                            let html = '<strong>' + escape_str(script.text) + '</strong>';
+
+                            if (script.type) {
+                                html += ' <span class="badge badge-secondary">' + script.type + '</span>';
+                            }
+
+                            if (script.description) {
+                                html += '<br><small class="text-muted">' + escape_str(script.description) + '</small>';
+                            }
+
+                            if (script.path) {
+                                html += '<br><small><code>' + escape_str(script.path) + '</code></small>';
+                            }
+
+                            $script.html(html);
+                            return $script;
+                        },
+                        templateSelection: function(script) {
+                            if (script.text) {
+                                return escape_str(script.text);
+                            }
+                            return escape_str(script.id);
+                        },
+                        placeholder: "Select scripts or type directory prefixes (e.g., batch/)"
+                    });
+
+                    // Load existing scripts if any
+                    let existingScripts = $("#script_allowlist").val();
+                    if (existingScripts) {
+                        let scripts = existingScripts.split(/\r?\n/).filter(s => s.trim());
+                        scripts.forEach(function(scriptPath) {
+                            scriptPath = scriptPath.trim();
+                            if (scriptPath) {
+                                // Check if it already exists in our data
+                                let existingOption = allScripts.find(s =>
+                                    s.relative_path.replace(/^\$KOHA_CRON_PATH\/?/, '') === scriptPath ||
+                                    s.name === scriptPath
+                                );
+
+                                let displayText = existingOption ? existingOption.name : scriptPath;
+                                let option = new Option(displayText, scriptPath, true, true);
+                                $("#script_picker").append(option);
+                            }
+                        });
+                        $("#script_picker").trigger('change');
+                    }
+                }
+
+                // Update hidden fields on form submit
                 $("form").on("submit", function() {
+                    // Handle patron allowlist
                     let selectedIds = $("#patron_allowlist").val();
                     if (selectedIds && selectedIds.length > 0) {
                         $("#user_allowlist").val(selectedIds.join(","));
                     } else {
                         $("#user_allowlist").val("");
+                    }
+
+                    // Handle script allowlist
+                    let selectedScripts = $("#script_picker").val();
+                    if (selectedScripts && selectedScripts.length > 0) {
+                        $("#script_allowlist").val(selectedScripts.join("\n"));
+                    } else {
+                        $("#script_allowlist").val("");
                     }
                 });
             });

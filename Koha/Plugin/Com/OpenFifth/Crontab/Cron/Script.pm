@@ -59,13 +59,15 @@ sub new {
 Get list of available scripts from KOHA_CRON_PATH
 
     my $scripts = $script->get_available_scripts();
+    my $scripts = $script->get_available_scripts({ bypass_filter => 1 });
 
 Returns arrayref of hashrefs with script metadata
 
 =cut
 
 sub get_available_scripts {
-    my ($self) = @_;
+    my ($self, $options) = @_;
+    $options ||= {};
 
     # Get KOHA_CRON_PATH from crontab environment
     my $ct = $self->{crontab}->read();
@@ -119,6 +121,41 @@ sub get_available_scripts {
 
     # Sort by name
     @scripts = sort { $a->{name} cmp $b->{name} } @scripts;
+
+    # Filter by script allowlist if configured (unless bypassed)
+    unless ($options->{bypass_filter}) {
+        my $plugin = $self->{crontab}->{plugin};
+        if ($plugin) {
+            my $script_allowlist = $plugin->retrieve_data('script_allowlist');
+            if ($script_allowlist && $script_allowlist =~ /\S/) {
+                # Parse allowlist (one entry per line, trim whitespace)
+                my @allowed_patterns = grep { /\S/ } split(/\r?\n/, $script_allowlist);
+
+                if (@allowed_patterns) {
+                    my @filtered_scripts;
+                    for my $script (@scripts) {
+                        my $rel_path = $script->{relative_path};
+                        # Remove $KOHA_CRON_PATH prefix for matching
+                        $rel_path =~ s/^\$KOHA_CRON_PATH\/?//;
+
+                        for my $pattern (@allowed_patterns) {
+                            $pattern =~ s/^\s+|\s+$//g; # Trim whitespace
+
+                            # Check if script matches pattern
+                            # Pattern can be exact match or prefix match (e.g., "batch/" matches all in batch dir)
+                            if ($rel_path eq $pattern ||
+                                index($rel_path, $pattern) == 0 ||
+                                $script->{name} eq $pattern) {
+                                push @filtered_scripts, $script;
+                                last; # Found a match, no need to check other patterns
+                            }
+                        }
+                    }
+                    @scripts = @filtered_scripts;
+                }
+            }
+        }
+    }
 
     return \@scripts;
 }

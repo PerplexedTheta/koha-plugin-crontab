@@ -40,7 +40,11 @@ sub list {
             { crontab => $crontab }
           );
 
-        my $scripts = $script_model->get_available_scripts();
+        # Check if bypass_filter parameter is provided (for configuration page)
+        my $bypass_filter = $c->validation->param('bypass_filter') || 0;
+        my $options = $bypass_filter ? { bypass_filter => 1 } : {};
+
+        my $scripts = $script_model->get_available_scripts($options);
 
         return $c->render(
             status  => 200,

@@ -657,6 +657,16 @@
             "produces": [
                 "application/json"
             ],
+            "parameters": [
+                {
+                    "name": "bypass_filter",
+                    "in": "query",
+                    "description": "Bypass script allowlist filtering (used by configuration page to show all available scripts)",
+                    "required": false,
+                    "type": "boolean",
+                    "default": false
+                }
+            ],
             "responses": {
                 "200": {
                     "description": "List of available scripts",
