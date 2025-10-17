@@ -142,6 +142,88 @@ sub install() {
         };
     }
 
+    # Check if crontab file exists, create template if not
+    my $ct = Config::Crontab->new();
+    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
+    $ct->file($cron_file) if $cron_file;
+
+    # Try to read existing crontab
+    my $existing;
+    $ct->read or do {
+        $existing = 0;
+    };
+
+    unless ( $existing ) {
+        warn "No crontab found, installing default";
+
+        # Create template content
+        my $header_block = Config::Crontab::Block->new();
+        my $header_comment = qq{# Koha Example Crontab File
+#
+# This is an example of a crontab file for Debian.  It may not work
+# in other versions of crontab, like on Solaris 8 or BSD, for example.
+#
+# While similar in structure,
+# this is NOT an example for cron (as root).  Cron takes an extra
+# argument per line to designate the user to run as.  You could
+# reasonably extrapolate the needed info from here though.
+#
+# WARNING: These jobs will do things like charge fines, send
+# potentially VERY MANY emails to patrons and even debar offending
+# users.  DO NOT RUN OR SCHEDULE these jobs without being sure you
+# really intend to.  Make sure the relevant message templates are
+# configured to your liking before scheduling messages to be sent.
+};
+
+        $header_block->first(
+            Config::Crontab::Comment->new( -data => $header_comment ) );
+        $ct->first($header_block);
+
+        # Add environment variables
+        my $env_block = Config::Crontab::Block->new();
+        my $env_lines;
+
+        push @{$env_lines},
+            Config::Crontab::Comment->new( -data => '# ENVIRONMENT' );
+
+        push @{$env_lines},
+            Config::Crontab::Env->new(
+            -name   => 'KOHA_CONF',
+            -value  =>  $ENV{KOHA_CONF} || '/etc/koha/koha-conf.xml',
+            -active => 1
+            );
+
+
+        push @{$env_lines},
+            Config::Crontab::Env->new(
+            -name   => 'PERL5LIB',
+            -value  => $ENV{PERL5LIB} || '/usr/share/koha/lib',
+            -active => 1
+            );
+
+        push @{$env_lines},
+            Config::Crontab::Comment->new( -data => '# Some additional variables to save you typing');
+
+        push @{$env_lines},
+            Config::Crontab::Env->new(
+            -name   => 'KOHA_CRON_PATH',
+            -value  => '/usr/share/koha/bin/cronjobs',
+            -active => 1
+            );
+
+        $env_block->lines($env_lines);
+
+        $ct->after( $header_block, $env_block );
+
+        eval { $ct->write(); };
+        if ($@) {
+            warn "Failed to create crontab template: $@";
+            return 0;
+        }
+
+        warn "Created crontab template successfully";
+    }
+
     # Store installation success
     $self->store_data( {
         installation_date => strftime("%Y-%m-%d %H:%M:%S", localtime),
@@ -153,32 +235,25 @@ sub install() {
 sub enable {
     my ( $self ) = @_;
 
-    # Call parent enable method
-    $self->SUPER::enable();
-
-    # In crontab-primary model, jobs are added individually via the API
-    # No centralized manager script needed
-    # Just verify we can access the crontab
-
     my $ct        = Config::Crontab->new();
     my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
     $ct->file($cron_file) if $cron_file;
-    $ct->mode('block');
     $ct->read or do {
         warn "No crontab found, creating new one";
+        return 0;
     };
+
+    # Call parent enable method
+    $self->SUPER::enable();
 
     # Create a backup on enable
     my $path       = $self->mbf_dir . '/backups/';
     my $now_string = strftime "%F_%H-%M-%S", localtime;
     my $filename   = $path . 'enable_' . $now_string;
-
-    my $backup_ct = Config::Crontab->new();
-    my $backup_cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
-    $backup_ct->file($backup_cron_file) if $backup_cron_file;
-    $backup_ct->mode('block');
-    $backup_ct->read();
-    $backup_ct->write("$filename");
+    $ct->write("$filename") or do {
+        warn "Could not write backup to $filename";
+        return 0;
+    };
 
     warn "Plugin enabled - jobs can now be managed via the web interface";
 
@@ -191,21 +266,15 @@ sub disable {
     # Call parent disable method
     $self->SUPER::disable();
 
-    # In crontab-primary model, we can optionally remove all plugin-managed jobs
-    # or just leave them (they won't be editable via the UI when plugin is disabled)
-    # For now, we'll leave jobs in place and just create a backup
-
     # Create a backup on disable
     my $path       = $self->mbf_dir . '/backups/';
     my $now_string = strftime "%F_%H-%M-%S", localtime;
     my $filename   = $path . 'disable_' . $now_string;
 
-    my $backup_ct = Config::Crontab->new();
-    my $cron_file = C4::Context->config('koha_plugin_crontab_cronfile') || undef;
-    $backup_ct->file($cron_file) if $cron_file;
-    $backup_ct->mode('block');
-    $backup_ct->read();
-    $backup_ct->write("$filename");
+    my $ct = Config::Crontab->new();
+    $ct->mode('block');
+    $ct->read();
+    $ct->write("$filename");
 
     warn "Plugin disabled - jobs remain in crontab but cannot be managed via UI";
 
