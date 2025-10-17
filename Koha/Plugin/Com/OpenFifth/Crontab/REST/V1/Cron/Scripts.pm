@@ -33,7 +33,7 @@ sub list {
     try {
         my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
         my $script_model =
           Koha::Plugin::Com::OpenFifth::Crontab::Cron::Script->new(
@@ -71,7 +71,7 @@ sub get {
     try {
         my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
         my $script_model =
           Koha::Plugin::Com::OpenFifth::Crontab::Cron::Script->new(

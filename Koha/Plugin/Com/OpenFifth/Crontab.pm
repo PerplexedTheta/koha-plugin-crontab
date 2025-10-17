@@ -113,16 +113,22 @@ sub configure {
 
         ## Grab the values we already have for our settings, if any exist
         $template->param(
-            enable_logging => $self->retrieve_data('enable_logging'),
-            user_allowlist => $self->retrieve_data('user_allowlist'),
+            enable_logging   => $self->retrieve_data('enable_logging'),
+            user_allowlist   => $self->retrieve_data('user_allowlist'),
+            backup_retention => $self->retrieve_data('backup_retention') || 10,
         );
 
         $self->output_html( $template->output() );
     } else {
+        my $backup_retention = $cgi->param('backup_retention');
+        # Validate backup_retention is between 1 and 100
+        $backup_retention = 10 unless ($backup_retention && $backup_retention >= 1 && $backup_retention <= 100);
+
         $self->store_data(
             {
-                enable_logging => $cgi->param('enable_logging'),
-                user_allowlist => $cgi->param('user_allowlist'),
+                enable_logging   => $cgi->param('enable_logging'),
+                user_allowlist   => $cgi->param('user_allowlist'),
+                backup_retention => $backup_retention,
             }
         );
         $self->go_home();
@@ -224,6 +230,13 @@ sub install() {
         warn "Created crontab template successfully";
     }
 
+    # Set default backup retention if not already configured
+    unless (defined $self->retrieve_data('backup_retention')) {
+        $self->store_data({
+            backup_retention => 10,
+        });
+    }
+
     # Store installation success
     $self->store_data( {
         installation_date => strftime("%Y-%m-%d %H:%M:%S", localtime),
@@ -289,7 +302,7 @@ sub uninstall {
     require Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job;
 
     my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new({
-        backup_dir => $self->mbf_dir . '/backups',
+        plugin => $self,
     });
     my $job_model = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new({
         crontab => $crontab,

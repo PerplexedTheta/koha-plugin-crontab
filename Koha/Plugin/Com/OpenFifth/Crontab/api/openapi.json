@@ -498,32 +498,28 @@
         }
     },
     "/backup": {
-        "post": {
+        "get": {
             "x-mojo-to": "Com::OpenFifth::Crontab::REST::V1::Cron::Jobs#backup",
-            "operationId": "backupCrontabJobs",
+            "operationId": "downloadCrontabBackup",
             "tags": [
                 "cronjobs"
             ],
             "produces": [
-                "application/json"
+                "text/plain",
+                "application/octet-stream"
             ],
             "responses": {
                 "200": {
-                    "description": "Backup created successfully",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "filename": {
-                                "type": "string"
-                            }
-                        }
-                    }
+                    "description": "Crontab backup file download"
                 },
                 "401": {
                     "description": "Authentication required"
                 },
                 "403": {
                     "description": "Access forbidden"
+                },
+                "404": {
+                    "description": "No backups available"
                 },
                 "500": {
                     "description": "Internal server error"

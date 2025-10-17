@@ -41,9 +41,8 @@ This module handles all crontab file operations with locking, backups, and valid
 Constructor
 
     my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new({
-        backup_dir => '/path/to/backups',     # Directory for backup files
+        plugin => $plugin_instance,            # Plugin instance for accessing config
         lock_timeout => 10,                    # Lock timeout in seconds (default: 10)
-        backup_retention => 10,                # Number of backups to keep (default: 10)
     });
 
 =cut
@@ -51,11 +50,14 @@ Constructor
 sub new {
     my ( $class, $args ) = @_;
 
+    my $plugin     = $args->{plugin} or die "Plugin instance required";
+    my $backup_dir = $plugin->mbf_dir . '/backups';
+
     my $self = {
-        backup_dir   => $args->{backup_dir}   || '/tmp/koha-crontab-backups',
+        plugin       => $plugin,
+        backup_dir   => $backup_dir,
         lock_timeout => $args->{lock_timeout} || 10,
-        backup_retention => $args->{backup_retention} || 10,
-        lockfile         => '/tmp/koha-crontab-plugin.lock',
+        lockfile     => '/tmp/koha-crontab-plugin.lock',
     };
 
     bless $self, $class;
@@ -100,32 +102,30 @@ sub safely_modify_crontab {
         };
     }
 
+    # Store a backup of the current state BEFORE we start
+    # This is for rollback purposes only
+    my $pre_modification_backup = $self->backup_crontab();
+
     my $result = eval {
 
-        # 1. Create backup of current crontab
-        my $backup_file = $self->backup_crontab();
-        unless ($backup_file) {
-            die "Failed to create backup\n";
-        }
-
-        # 2. Read and parse current crontab
+        # 1. Read and parse current crontab
         my $ct = $self->read();
         unless ($ct) {
             die "Failed to read crontab\n";
         }
 
-        # 3. Pre-modification validation
+        # 2. Pre-modification validation
         unless ( $self->validate($ct) ) {
             die "Pre-modification validation failed\n";
         }
 
-        # 4. Apply modifications via callback
+        # 3. Apply modifications via callback
         my $callback_result = $modification_callback->($ct);
         unless ($callback_result) {
             die "Modification callback returned failure\n";
         }
 
-        # 5. Dry-run validation (parse the string we'll write)
+        # 4. Dry-run validation (parse the string we'll write)
         my $draft   = $ct->dump();
         my $test_ct = Config::Crontab->new();
         $test_ct->parse($draft);
@@ -133,23 +133,26 @@ sub safely_modify_crontab {
             die "Post-modification validation failed\n";
         }
 
-        # 6. Write atomically
+        # 5. Write atomically
         my $cron_file =
           C4::Context->config('koha_plugin_crontab_cronfile') || undef;
         $ct->file($cron_file) if $cron_file;
         $ct->write();
 
+        # 6. Create backup AFTER successful modification
+        my $post_modification_backup = $self->backup_crontab();
+
         return {
             success => 1,
-            backup  => $backup_file,
+            backup  => $post_modification_backup,
             message => "Crontab modified successfully"
         };
     };
 
     if ($@) {
 
-        # Restore from backup on failure
-        my $restore_result = $self->restore_crontab();
+        # Restore from pre-modification backup on failure
+        my $restore_result = $self->restore_crontab($pre_modification_backup);
         $result = {
             success  => 0,
             error    => "Modification failed: $@",
@@ -409,7 +412,7 @@ sub _cleanup_old_backups {
     my ($self) = @_;
 
     my $backups   = $self->list_backups();
-    my $retention = $self->{backup_retention};
+    my $retention = $self->{plugin}->retrieve_data('backup_retention') || 10;
 
     # Remove backups beyond retention limit
     if ( @$backups > $retention ) {

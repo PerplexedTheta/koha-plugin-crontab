@@ -67,7 +67,7 @@
                             <i class="fa fa-plus"></i> New Job
                         </button>
                         <button type="button" id="backup_now" class="btn btn-default">
-                            <i class="fa fa-archive"></i> Backup
+                            <i class="fa fa-download"></i> Download Backup
                         </button>
                         <button type="button" id="refresh_jobs" class="btn btn-default">
                             <i class="fa fa-refresh"></i> Refresh
@@ -852,16 +852,11 @@
         }
 
         function createBackup() {
-            $.ajax({
-                url: '/api/v1/contrib/crontab/backup',
-                method: 'POST',
-                success: function(data) {
-                    showMessage('Backup created: ' + data.filename, 'success');
-                },
-                error: function(xhr, status, error) {
-                    showMessage('Failed to create backup: ' + error, 'danger');
-                }
-            });
+            // Trigger download of the latest backup by navigating to the endpoint
+            window.location.href = '/api/v1/contrib/crontab/backup';
+
+            // Show message that download has been triggered
+            showMessage('Downloading latest backup...', 'success');
         }
 
         function showMessage(message, type) {

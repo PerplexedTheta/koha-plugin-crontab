@@ -36,7 +36,7 @@ sub list {
     try {
         my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
         my $job_model = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new(
             { crontab => $crontab }
@@ -86,7 +86,7 @@ sub get {
     try {
         my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
         my $job_model = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new(
             { crontab => $crontab }
@@ -155,7 +155,7 @@ sub add {
 
     try {
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
         my $job_model = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new(
             { crontab => $crontab }
@@ -249,7 +249,7 @@ sub update {
 
     try {
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
         my $job_model = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new(
             { crontab => $crontab }
@@ -376,7 +376,7 @@ sub delete {
 
     try {
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
         my $job_model = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new(
             { crontab => $crontab }
@@ -449,7 +449,7 @@ sub enable {
 
     try {
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
         my $job_model = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new(
             { crontab => $crontab }
@@ -524,7 +524,7 @@ sub disable {
 
     try {
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
         my $job_model = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new(
             { crontab => $crontab }
@@ -583,7 +583,7 @@ sub disable {
 
 =head3 backup
 
-Create a backup of current job configuration
+Download the most recent crontab backup file
 
 =cut
 
@@ -596,28 +596,41 @@ sub backup {
 
     try {
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
 
-        # This creates a crontab backup file
-        my $backup_file = $crontab->backup_crontab();
+        # Get the most recent backup
+        my $backups = $crontab->list_backups();
 
-        unless ($backup_file) {
-            die "Failed to create backup";
+        unless ($backups && @$backups) {
+            return $c->render(
+                status  => 404,
+                openapi => { error => "No backups available" }
+            );
         }
+
+        my $latest_backup = $backups->[0];
+        my $backup_file = $latest_backup->{filename};
+
+        # Read the backup file content
+        open my $fh, '<', $backup_file or die "Cannot open backup file: $!";
+        my $content = do { local $/; <$fh> };
+        close $fh;
 
         # Extract just the filename from the full path
         my $filename = ( split( '/', $backup_file ) )[-1];
 
+        # Return as downloadable file
         return $c->render(
-            status  => 200,
-            openapi => { filename => $filename }
+            data => $content,
+            format => 'txt',
+            content_disposition => "attachment; filename=\"$filename.txt\""
         );
     }
     catch {
         return $c->render(
             status  => 500,
-            openapi => { error => "Failed to create backup: $_" }
+            openapi => { error => "Failed to download backup: $_" }
         );
     };
 }
@@ -636,7 +649,7 @@ sub list_all {
     try {
         my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
         my $job_model = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new(
             { crontab => $crontab }
@@ -691,7 +704,7 @@ sub get_environment {
     try {
         my $plugin  = Koha::Plugin::Com::OpenFifth::Crontab->new( {} );
         my $crontab = Koha::Plugin::Com::OpenFifth::Crontab::Cron::File->new(
-            { backup_dir => $plugin->mbf_dir . '/backups', }
+            { plugin => $plugin, }
         );
         my $job_model = Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job->new(
             { crontab => $crontab }

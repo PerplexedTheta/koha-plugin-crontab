@@ -57,6 +57,15 @@
                                         [% END %]
                                     </select>
                                 </li>
+                                <li>
+                                    <label for="backup_retention">Crontab backup retention: </label>
+                                    <input type="number" name="backup_retention" id="backup_retention"
+                                           value="[% backup_retention || 10 %]" min="1" max="100" size="5" />
+                                    <div class="hint">
+                                        Number of crontab backup files to keep.
+                                        Older backups will be automatically deleted. Default: 10
+                                    </div>
+                                </li>
                             </ol>
                         </fieldset>
 
