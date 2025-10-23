@@ -4,7 +4,7 @@ package Koha::Plugin::Com::OpenFifth::Crontab::Cron::Job;
 
 use Modern::Perl;
 use POSIX qw(strftime);
-use Data::UUID;
+use UUID;
 use Config::Crontab;
 
 =head1 NAME
@@ -45,8 +45,7 @@ sub new {
     die "crontab instance required" unless $args->{crontab};
 
     my $self = {
-        crontab        => $args->{crontab},
-        uuid_generator => Data::UUID->new(),
+        crontab => $args->{crontab},
     };
 
     bless $self, $class;
@@ -315,7 +314,13 @@ Generate a unique UUID for a job
 sub generate_job_id {
     my ($self) = @_;
 
-    return $self->{uuid_generator}->create_str();
+    my $uuid;
+    UUID::generate($uuid);
+
+    my $uuid_string;
+    UUID::unparse($uuid, $uuid_string);
+
+    return $uuid_string;
 }
 
 =head2 find_job_block
