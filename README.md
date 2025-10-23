@@ -31,14 +31,9 @@ To set up the Koha plugin system you must first make some changes to your instal
 
 Once set up is complete you will need to alter your UseKohaPlugins system preference.
 
-## Add dependencies
+## Dependencies
 
-This plugin depends on the Config::Crontab perl module from CPAN. You will need to ask your system administrator to 
-ensure it is available prior to downloading and installing the plugin package.
-
-The package can be installed using apt:
-
-`sudo apt install libconfig-crontab-perl`
+This plugin has **no external dependencies**. All required modules (Config::Crontab, UUID) are either bundled with the plugin or already available in Koha core.
 
 ## Download and install the plugin
 
