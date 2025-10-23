@@ -7,7 +7,7 @@ on:
     tags:
       - 'v*.*.*'
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: "0 6 1,15 * *"
 
 jobs:
   unit_tests:
@@ -49,8 +49,16 @@ jobs:
           echo "KOHA_INTRANET_URL=$KOHA_INTRANET_URL" >> $GITHUB_ENV
           echo "KOHA_MARC_FLAVOUR=$KOHA_MARC_FLAVOUR" >> $GITHUB_ENV
           echo "RUN_TESTS_AND_EXIT=no" >> $GITHUB_ENV
-          echo "KOHA_IMAGE=main" >> $GITHUB_ENV
-
+          
+      - name: Set KOHA_IMAGE to match tested branch
+        run: |
+          # Use version-major-minor but handle main branch case
+          if [ "${{ matrix.koha-version }}" = "main" ]; then
+            echo "KOHA_IMAGE=main" >> $GITHUB_ENV
+          else
+            echo "KOHA_IMAGE=${{ steps.koha-version.outputs.version-major-minor }}" >> $GITHUB_ENV
+          fi
+      
       - name: Set up koha-testing-docker
         run: |
           sudo sysctl -w vm.max_map_count=262144
