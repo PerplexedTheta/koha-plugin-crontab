@@ -6,15 +6,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Replaced Data::UUID with UUID module to eliminate external dependencies
+- Updated README to clarify plugin has zero external dependencies
+
+### Removed
+- Data::UUID dependency (replaced with UUID from Koha core)
+
+## [1.2.2] - 2025-10-17
+
+### Fixed
+- Added missing package-lock.json file
+
+## [1.2.1] - 2024-XX-XX
+
+### Fixed
+- Fixed package definition issues
+
+## [1.2.0] - 2024-XX-XX
+
 ### Added
-- Add beggining of management page as tool
-- Testing Config::Crontab for loading instance crontab
-- Build start of UI using [crontab-ui](https://github.com/alseambusher/crontab-ui/tree/main) for inspiration
-- Add install method to parse and manipulate crontab for the first time
-- Add API endpoint for updateing cron lines
+- Script allowlist with visual picker for administrator control
+- Configurable backup retention system (default: 10 backups)
+- Improved backup workflow with better organization
 
-## Changed
+### Changed
+- Enhanced backup system with configurable retention settings
 
-- Updated from tool to admin tool
+## [1.1.0] - 2024-XX-XX
+
+### Added
+- Crontab template creation on installation
+- Simplified to use user crontab by default
+- Bundled Config::Crontab dependency into plugin
+
+### Changed
+- Rebranded from PTFS Europe to Open Fifth
+- Updated build system to match plugin template
+- Refactored REST controllers to REST/V1/Cron namespace
+- Refactored Model classes to lib/Koha/Cron namespace
+- Split Manager into focused Model layer classes
+- Split Controller into REST::V1::Jobs and Scripts
+
+### Fixed
+- Suppressed subroutine redefinition warnings from bundled dependencies
+- Removed unnecessary Config::Crontab availability checks
+
+## [1.0.0] - 2024-XX-XX
+
+### Added
+- Initial stable release
+- Script picker with parameter builder and POD viewer
+- Select2 patron picker for allowlist management
+- User allowlist configuration in plugin settings
+- Predefined schedules and commands
+- Loading spinners for better UX
+- Crontab management through web interface
+- Bootstrap 5 compatibility
+- Ability to limit plugin access to specific users (#2)
+- Logging of changes to Koha action logs (#3)
+- Option to point to specific cron file via plugin config (#11)
+- Environment variable management
+- Backup/restore functionality
+- Admin plugin type implementation
+
+### Changed
+- Converted from tool to admin plugin type
+- Extracted crontab management into Manager.pm infrastructure
+- Tidied Crontab.pm and Controller.pm code
+
+### Fixed
+- Semantic issue with patron allowlist check (#2)
+- Typo in README.md
 
 
